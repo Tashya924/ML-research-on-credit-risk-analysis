@@ -1,0 +1,5 @@
+{
+    "iterations": 200,
+    "verbose": 0,
+    "random_state": 42
+}
