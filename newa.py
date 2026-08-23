@@ -17,9 +17,9 @@ from sklearn.base import clone
 from sklearn.linear_model import LogisticRegression, RidgeClassifier
 from sklearn.tree import DecisionTreeClassifier, ExtraTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import (RandomForestClassifier, ExtraTreesClassifier, 
-                              AdaBoostClassifier, GradientBoostingClassifier, 
-                              HistGradientBoostingClassifier)
+from sklearn.ensemble import (RandomForestClassifier, ExtraTreesClassifier,
+                             AdaBoostClassifier, GradientBoostingClassifier,
+                             HistGradientBoostingClassifier)
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
 from sklearn.neural_network import MLPClassifier
@@ -27,21 +27,21 @@ from sklearn.calibration import CalibratedClassifierCV
 import xgboost as xgb
 
 def custom_threshold_plot(model, X, y, title, filename):
-    cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
-    thresholds = np.linspace(0.01, 0.99, 50)
-    
+    cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+    thresholds = np.linspace(0.0, 0.99, 100)
+
     metrics = {'precision': [], 'recall': [], 'f1': [], 'queue_rate': []}
-    
+
     X_arr = np.array(X)
     y_arr = np.array(y)
-    
+
     for train_idx, test_idx in cv.split(X_arr, y_arr):
         X_tr, X_te = X_arr[train_idx], X_arr[test_idx]
         y_tr, y_te = y_arr[train_idx], y_arr[test_idx]
-        
+
         model.fit(X_tr, y_tr)
         probs = model.predict_proba(X_te)[:, 1]
-        
+
         fold_metrics = {'precision': [], 'recall': [], 'f1': [], 'queue_rate': []}
         for t in thresholds:
             preds = (probs >= t).astype(int)
@@ -49,30 +49,32 @@ def custom_threshold_plot(model, X, y, title, filename):
             fold_metrics['recall'].append(recall_score(y_te, preds, zero_division=0))
             fold_metrics['f1'].append(f1_score(y_te, preds, zero_division=0))
             fold_metrics['queue_rate'].append(np.mean(preds))
-            
+
         for k in metrics.keys():
             metrics[k].append(fold_metrics[k])
-            
+
     plt.figure(figsize=(10, 6))
     sns.set_theme(style="whitegrid")
-    
+
     colors = {'precision': '#1f77b4', 'recall': '#2ca02c', 'f1': '#d62728', 'queue_rate': '#9467bd'}
-    
+
     best_t = 0.5
     best_f1 = 0
-    
+
     for metric_name, color in colors.items():
         arr = np.array(metrics[metric_name])
         mean_val = np.mean(arr, axis=0)
         std_val = np.std(arr, axis=0)
-        
+
         plt.plot(thresholds, mean_val, label=metric_name, color=color, linewidth=2)
         plt.fill_between(thresholds, np.clip(mean_val - std_val, 0, 1), np.clip(mean_val + std_val, 0, 1), color=color, alpha=0.2)
-        
+
         if metric_name == 'f1':
             max_idx = np.argmax(mean_val)
             best_t = thresholds[max_idx]
             best_f1 = mean_val[max_idx]
+
+    print(f"[{title}] 10-Fold CV -> Best Threshold: {best_t:.2f}, Best F1: {best_f1:.4f}")
 
     plt.axvline(best_t, color='black', linestyle='--', label=f'Optimal t={best_t:.2f}')
     plt.title(title)
@@ -90,20 +92,20 @@ def generate_custom_plots(X_train_raw, y_train_raw, X_train_corr, y_train_corr, 
     fixed_dir = "fixed_threshold_plots"
     os.makedirs(leaky_dir, exist_ok=True)
     os.makedirs(fixed_dir, exist_ok=True)
-    
+
     datasets = {
-        "leaky": (X_train_raw, y_train_raw, leaky_dir),       
-        "fixed": (X_train_corr, y_train_corr, fixed_dir)  
+        "leaky": (X_train_raw, y_train_raw, leaky_dir),
+        "fixed": (X_train_corr, y_train_corr, fixed_dir)
     }
-    
+
     for scenario, (X_data, y_data, folder_path) in datasets.items():
         for name, model_instance in models_dict.items():
             model = clone(model_instance)
-            
+
             clean_name = name.replace(" ", "_")
             filename = os.path.join(folder_path, f"{scenario}_{clean_name}_threshold_plot.png")
             title = f"Threshold Plot for {name} ({scenario.capitalize()})"
-            
+
             custom_threshold_plot(model, X_data, y_data, title, filename)
 
 def main():
@@ -127,13 +129,13 @@ def main():
 
     scaler_global = StandardScaler()
     X_scaled_global = pd.DataFrame(scaler_global.fit_transform(X), columns=X.columns)
-    
+
     ros = RandomOverSampler(random_state=42)
     X_res_leaky, y_res_leaky = ros.fit_resample(X_scaled_global, y)
     X_train_leaky, X_test_leaky, y_train_leaky, y_test_leaky = train_test_split(
         X_res_leaky, y_res_leaky, test_size=0.25, random_state=42, shuffle=True
     )
-    
+
     X_train_raw_global_sc = pd.DataFrame(scaler_global.transform(X_train_raw), columns=X.columns)
 
     smote_nc = SMOTENC(categorical_features=cat_indices, random_state=42)
@@ -145,7 +147,7 @@ def main():
     )
     X_train_corr_sc = preprocessor.fit_transform(X_train_res)
     X_test_corr_sc = preprocessor.transform(X_test_raw)
-    
+
     X_train_raw_corr_sc = preprocessor.transform(X_train_raw)
 
     scenarios = {
@@ -172,17 +174,17 @@ def main():
     }
 
     all_results = []
-    
+
     for scenario, (X_tr, X_te, ytr, yte, X_train_raw_sc) in scenarios.items():
         for name, model in models_dict.items():
             model.fit(X_tr, ytr)
-            
+
             clean_name = name.replace(" ", "_")
             clean_scenario = scenario.lower().replace(" ", "_")
             model_dir = f"models/{clean_scenario}/{clean_name}"
             os.makedirs(f"{model_dir}/config_files", exist_ok=True)
             os.makedirs(f"{model_dir}/weights", exist_ok=True)
-            
+
             try:
                 params = model.get_params()
                 safe_params = {k: str(v) for k, v in params.items()}
@@ -190,68 +192,67 @@ def main():
                     json.dump(safe_params, f, indent=4)
             except Exception:
                 pass
-                
+
             joblib.dump(model, f"{model_dir}/weights/model.joblib")
 
             probs_test = model.predict_proba(X_te)[:, 1]
 
             preds_default = (probs_test >= 0.5).astype(int)
             default_f1 = f1_score(yte, preds_default, zero_division=0)
-            
+
             all_results.append({
-                "Algorithm": name, 
+                "Algorithm": name,
                 "Scenario": scenario,
                 "Accuracy": accuracy_score(yte, preds_default),
                 "Recall": recall_score(yte, preds_default, zero_division=0),
-                "Precision": precision_score(yte, preds_default, zero_division=0), 
-                "F1": default_f1, 
+                "Precision": precision_score(yte, preds_default, zero_division=0),
+                "F1": default_f1,
                 "ROC_AUC": roc_auc_score(yte, probs_test),
                 "Threshold": 0.50
             })
 
             best_thresh = 0.5
             best_f1 = default_f1
-            
-            for t in np.linspace(0.1, 0.9, 81):
+
+            for t in np.linspace(0.0, 0.99, 100):
                 t_preds = (probs_test >= t).astype(int)
                 t_f1 = f1_score(yte, t_preds, zero_division=0)
                 if t_f1 > best_f1:
                     best_f1 = t_f1
                     best_thresh = t
-                    
+
             opt_preds_test = (probs_test >= best_thresh).astype(int)
             all_results.append({
-                "Algorithm": name, 
+                "Algorithm": name,
                 "Scenario": f"{scenario} (Opt. Thresh)",
                 "Accuracy": accuracy_score(yte, opt_preds_test),
                 "Recall": recall_score(yte, opt_preds_test, zero_division=0),
-                "Precision": precision_score(yte, opt_preds_test, zero_division=0), 
-                "F1": best_f1, 
+                "Precision": precision_score(yte, opt_preds_test, zero_division=0),
+                "F1": best_f1,
                 "ROC_AUC": roc_auc_score(yte, probs_test),
                 "Threshold": best_thresh
             })
 
     res_df = pd.DataFrame(all_results)
-    
-    # Save the dataframe to a text file
+
     with open("results_summary.txt", "w") as text_file:
         text_file.write(res_df.sort_values(by=["Algorithm", "Scenario"]).to_string(index=False))
-    
+
     sns.set_theme(style="whitegrid")
-    metrics = [("ROC_AUC", "chart_1_roc_auc.png"), 
-               ("F1", "chart_2_f1_score.png"), 
-               ("Precision", "chart_3_precision.png"), 
+    metrics = [("ROC_AUC", "chart_1_roc_auc.png"),
+               ("F1", "chart_2_f1_score.png"),
+               ("Precision", "chart_3_precision.png"),
                ("Recall", "chart_4_recall.png")]
-               
+
     for metric, filename in metrics:
-        plt.figure(figsize=(14, 12)) 
+        plt.figure(figsize=(14, 12))
         sns.barplot(data=res_df, x=metric, y="Algorithm", hue="Scenario")
         plt.xlim(0, 1.0)
         plt.title(f"{metric} Comparison across all Scenarios and Thresholds")
         plt.tight_layout()
         plt.savefig(filename, dpi=300)
         plt.close()
-    
+
     return X_train_raw_global_sc, y_train_raw, X_train_corr_sc, y_train_res, models_dict
 
 if __name__ == "__main__":
