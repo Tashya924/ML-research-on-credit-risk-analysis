@@ -1,0 +1,61 @@
+             Algorithm                Scenario  Accuracy   Recall  Precision       F1  ROC_AUC  Threshold
+              AdaBoost               Corrected  0.747200 0.583897   0.437990 0.500527 0.752007       0.50
+              AdaBoost Corrected (Opt. Thresh)  0.776667 0.545175   0.486828 0.514352 0.752007       0.52
+              AdaBoost                   Leaky  0.702277 0.577520   0.771826 0.660683 0.772563       0.50
+              AdaBoost     Leaky (Opt. Thresh)  0.667351 0.841549   0.625269 0.717464 0.772563       0.43
+         Decision Tree               Corrected  0.677200 0.474493   0.330197 0.389407 0.603961       0.50
+         Decision Tree Corrected (Opt. Thresh)  0.677467 0.474493   0.330479 0.389604 0.603961       0.51
+         Decision Tree                   Leaky  0.874508 0.959918   0.820528 0.884767 0.874206       0.50
+         Decision Tree     Leaky (Opt. Thresh)  0.874508 0.959918   0.820528 0.884767 0.874206       0.50
+            Extra Tree               Corrected  0.668267 0.469576   0.319799 0.380478 0.596745       0.50
+            Extra Tree Corrected (Opt. Thresh)  0.668400 0.470191   0.320084 0.380881 0.596745       0.10
+            Extra Tree                   Leaky  0.878959 0.964353   0.824318 0.888854 0.878773       0.50
+            Extra Tree     Leaky (Opt. Thresh)  0.878959 0.964353   0.824318 0.888854 0.878773       0.50
+           Extra Trees               Corrected  0.781600 0.466503   0.496403 0.480989 0.742091       0.50
+           Extra Trees Corrected (Opt. Thresh)  0.740667 0.593116   0.429270 0.498065 0.742091       0.40
+           Extra Trees                   Leaky  0.941106 0.962818   0.923140 0.942561 0.983608       0.50
+           Extra Trees     Leaky (Opt. Thresh)  0.965930 0.935698   0.996187 0.964996 0.983608       0.89
+  Gaussian Naive Bayes               Corrected  0.382533 0.905962   0.247648 0.388970 0.728350       0.50
+  Gaussian Naive Bayes Corrected (Opt. Thresh)  0.603867 0.728334   0.319063 0.443737 0.728350       0.90
+  Gaussian Naive Bayes                   Leaky  0.618045 0.805390   0.587094 0.679131 0.736370       0.50
+  Gaussian Naive Bayes     Leaky (Opt. Thresh)  0.668550 0.729319   0.651730 0.688345 0.736370       0.63
+     Gradient Boosting               Corrected  0.767333 0.559312   0.469556 0.510519 0.759032       0.50
+     Gradient Boosting Corrected (Opt. Thresh)  0.757600 0.586970   0.454545 0.512339 0.759032       0.48
+     Gradient Boosting                   Leaky  0.723592 0.646086   0.766491 0.701157 0.796731       0.50
+     Gradient Boosting     Leaky (Opt. Thresh)  0.692176 0.835579   0.650511 0.731522 0.796731       0.36
+Hist Gradient Boosting               Corrected  0.764667 0.517517   0.462130 0.488257 0.749229       0.50
+Hist Gradient Boosting Corrected (Opt. Thresh)  0.746133 0.569760   0.435007 0.493348 0.749229       0.46
+Hist Gradient Boosting                   Leaky  0.755949 0.712434   0.781917 0.745560 0.842569       0.50
+Hist Gradient Boosting     Leaky (Opt. Thresh)  0.756292 0.858605   0.713840 0.779559 0.842569       0.39
+                   KNN               Corrected  0.668533 0.606023   0.348287 0.442351 0.688003       0.50
+                   KNN Corrected (Opt. Thresh)  0.668533 0.606023   0.348287 0.442351 0.688003       0.50
+                   KNN                   Leaky  0.746020 0.828245   0.712441 0.765991 0.826705       0.50
+                   KNN     Leaky (Opt. Thresh)  0.725475 0.936551   0.659500 0.773980 0.826705       0.21
+                   LDA               Corrected  0.679467 0.650891   0.365803 0.468377 0.723990       0.50
+                   LDA Corrected (Opt. Thresh)  0.781467 0.503995   0.496368 0.500152 0.723990       0.57
+                   LDA                   Leaky  0.669663 0.622037   0.689414 0.653994 0.717324       0.50
+                   LDA     Leaky (Opt. Thresh)  0.548451 0.919836   0.528829 0.671565 0.717324       0.28
+   Logistic Regression               Corrected  0.667867 0.666257   0.357520 0.465336 0.728644       0.50
+   Logistic Regression Corrected (Opt. Thresh)  0.784667 0.503380   0.503690 0.503535 0.728644       0.58
+   Logistic Regression                   Leaky  0.668122 0.634999   0.681868 0.657600 0.718890       0.50
+   Logistic Regression     Leaky (Opt. Thresh)  0.568567 0.884360   0.543103 0.672940 0.718890       0.32
+        MLP Classifier               Corrected  0.743600 0.580209   0.432234 0.495408 0.732968       0.50
+        MLP Classifier Corrected (Opt. Thresh)  0.757867 0.556238   0.452726 0.499173 0.732968       0.53
+        MLP Classifier                   Leaky  0.733693 0.756098   0.725057 0.740252 0.813918       0.50
+        MLP Classifier     Leaky (Opt. Thresh)  0.717942 0.847348   0.674267 0.750964 0.813918       0.40
+                   QDA               Corrected  0.357067 0.906577   0.240033 0.379568 0.718790       0.50
+                   QDA Corrected (Opt. Thresh)  0.410133 0.866011   0.250935 0.389119 0.718790       0.90
+                   QDA                   Leaky  0.567369 0.891182   0.541956 0.674020 0.723644       0.50
+                   QDA     Leaky (Opt. Thresh)  0.665554 0.739724   0.645579 0.689452 0.723644       0.78
+         Random Forest               Corrected  0.779333 0.480025   0.491195 0.485546 0.743573       0.50
+         Random Forest Corrected (Opt. Thresh)  0.754000 0.549478   0.445663 0.492155 0.743573       0.43
+         Random Forest                   Leaky  0.929464 0.967252   0.899730 0.932270 0.978505       0.50
+         Random Forest     Leaky (Opt. Thresh)  0.949324 0.958383   0.941679 0.949958 0.978505       0.62
+      Ridge Classifier               Corrected  0.675733 0.653964   0.362768 0.466667 0.724041       0.50
+      Ridge Classifier Corrected (Opt. Thresh)  0.778267 0.512600   0.489437 0.500751 0.724041       0.57
+      Ridge Classifier                   Leaky  0.667865 0.631247   0.682967 0.656089 0.717368       0.50
+      Ridge Classifier     Leaky (Opt. Thresh)  0.553330 0.910967   0.532131 0.671824 0.717368       0.29
+               XGBoost               Corrected  0.776533 0.475722   0.484659 0.480149 0.739541       0.50
+               XGBoost Corrected (Opt. Thresh)  0.752533 0.543331   0.442664 0.487859 0.739541       0.43
+               XGBoost                   Leaky  0.811847 0.811359   0.813301 0.812329 0.889780       0.50
+               XGBoost     Leaky (Opt. Thresh)  0.803373 0.906021   0.752621 0.822227 0.889780       0.39
