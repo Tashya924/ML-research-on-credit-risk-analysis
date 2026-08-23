@@ -1,7 +1,0 @@
-{
-    "algorithm": "deprecated",
-    "estimator": "None",
-    "learning_rate": "1.0",
-    "n_estimators": "50",
-    "random_state": "42"
-}

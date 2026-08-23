@@ -1,9 +1,0 @@
-{
-    "covariance_estimator": null,
-    "n_components": null,
-    "priors": null,
-    "shrinkage": "auto",
-    "solver": "lsqr",
-    "store_covariance": false,
-    "tol": 0.0001
-}
