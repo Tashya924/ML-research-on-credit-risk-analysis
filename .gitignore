@@ -1,4 +1,9 @@
 .DS_Store
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
 models/
 fixed_threshold_plots/
 leaky_threshold_plots/
+results/ctgan_synthetic_*.parquet

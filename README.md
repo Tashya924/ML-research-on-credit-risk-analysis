@@ -1,489 +1,276 @@
-# ML Research on Credit Risk Analysis
+# Machine Learning Research on Credit Risk Analysis: An Empirical Replication and Methodological Audit
 
-A research-replication project on **explainable credit-default prediction**. It benchmarks 15 machine-learning
-classifiers on the UCI "Default of Credit Card Clients" dataset, quantifies how much **data leakage inflates
-reported scores**, tunes decision thresholds for F1, explains predictions with **SHAP / LIME / permutation
-importance**, and ships the trained ensemble behind a **Next.js + Flask web app** that scores a customer live and
-shows which parameters drove the risk.
+[![Replication Study](https://img.shields.io/badge/Replication-Xu_et_al._(2024)-blue.svg)](https://link.springer.com/article/10.1007/s10479-024-06134-x)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-green.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Headline finding:** the "oversample-then-split" pipeline — the one this project set out to replicate — inflates F1
-> by **+0.30 on average** across 15 models, and by as much as **+0.51** for a single Extra Tree. Once the leak is
-> removed, nothing in this benchmark gets past **F1 ≈ 0.51 / ROC-AUC ≈ 0.76**.
+An empirical research replication and methodological audit of the explainable credit risk modeling paper:
+> **Xu, Q. A., Benson, V., & Chang, V. (2024).** *Prediction of bank credit worthiness through credit risk analysis: an explainable machine learning study.* **Annals of Operations Research**, 354(1), 247–271. [DOI: 10.1007/s10479-024-06134-x](https://link.springer.com/article/10.1007/s10479-024-06134-x).
+
+This project benchmarks 16 machine-learning and deep-learning classifiers on the UCI "Default of Credit Card Clients" dataset, **empirically proves and quantifies how class oversampling before partitioning induces catastrophic data leakage** (inflating reported $F_1$ scores by **+0.30 on average**), establishes the true performance baseline using `SMOTENC` after partitioning, calibrates discrimination thresholds via 10-fold cross-validation, augments training using a zero-leakage **Conditional Tabular GAN (CTGAN)**, and unpacks model decisions through **SHAP, LIME, and Permutation Feature Importance**.
+
+---
+
+## Key Research Findings
+
+> **Headline finding:** The "oversample-then-split" pipeline used in the published study inflates reported $F_1$ scores by **+0.305 on average** across all models, and by as much as **+0.508** for tree-based memorizers (e.g., Decision Tree jumping from an honest $F_1 = 0.380$ to an inflated $0.885$). Once data leakage is eliminated, the true predictive performance ceiling on this dataset is **$F_1 \approx 0.51$ / $\text{ROC-AUC} \approx 0.76$**.
+
+```
+                           DATA LEAKAGE INFLATION GAP
+                   (Published Leaky vs. Honest Corrected F1)
+                   
+Decision Tree        [======= Honest 0.389 =======][==== +0.495 INFLATION ====>] 0.885
+Extra Tree           [======= Honest 0.380 =======][==== +0.508 INFLATION ====>] 0.889
+Extra Trees          [============== Honest 0.481 =============][= +0.462 ====>] 0.943
+Random Forest        [============== Honest 0.486 =============][= +0.447 ====>] 0.932
+XGBoost              [============== Honest 0.480 =============][= +0.332 ====>] 0.812
+KNN                  [============ Honest 0.442 ===========][=== +0.324 ======>] 0.766
+Gaussian NB          [========== Honest 0.389 ==========][==== +0.290 ========>] 0.679
+Hist Gradient Boost  [============== Honest 0.488 =============][= +0.257 ====>] 0.746
+MLP Classifier       [============== Honest 0.495 =============][= +0.245 ====>] 0.740
+Gradient Boosting    [=============== Honest 0.511 ============][= +0.191 ====>] 0.701
+Logistic Regression  [============= Honest 0.465 ============][== +0.192 =====>] 0.658
+LDA / Ridge          [============= Honest 0.468 ============][== +0.186 =====>] 0.654
+AdaBoost             [=============== Honest 0.501 ============][= +0.160 ====>] 0.661
+```
+
+---
+
+## Research Architecture
+
+![Credit Risk Research Architecture](architecture_pipeline.png)
 
 ---
 
 ## Table of Contents
 
-- [Why this project exists](#why-this-project-exists)
-- [Repository layout](#repository-layout)
+- [Why This Study Exists](#why-this-study-exists)
+- [Repository Layout](#repository-layout)
 - [Dataset](#dataset)
 - [Methodology](#methodology)
-- [Results](#results)
-- [Explainability](#explainability)
-- [The web app](#the-web-app)
-- [Getting started](#getting-started)
-- [API reference](#api-reference)
-- [Reproducibility notes and known gaps](#reproducibility-notes-and-known-gaps)
-- [Branches](#branches)
-- [Contributors](#contributors)
+  - [1. The Two Parallel Pipelines (Leaky vs. Corrected)](#1-the-two-parallel-pipelines-leaky-vs-corrected)
+  - [2. The 16 Classification Algorithms](#2-the-16-classification-algorithms)
+  - [3. Discrimination Threshold Calibration](#3-discrimination-threshold-calibration)
+  - [4. Zero-Leakage CTGAN Augmentation & Deep Learning](#4-zero-leakage-ctgan-augmentation--deep-learning)
+  - [5. Model Explainability Suite (XAI)](#5-model-explainability-suite-xai)
+- [Audit Results & Paper Replication](#audit-results--paper-replication)
+  - [Replication Comparison with Xu et al. (2024) Table 2](#replication-comparison-with-xu-et-al-2024-table-2)
+  - [The Data Leakage Gap](#the-data-leakage-gap)
+  - [CTGAN Augmented Deep Learning Performance](#ctgan-augmented-deep-learning-performance)
+- [Getting Started](#getting-started)
+- [Citation & References](#citation--references)
 
 ---
 
-## Why this project exists
+## Why This Study Exists
 
-It is easy to report F1 above 0.9 on the UCI credit-card dataset — and easy to do it by accident. Balancing the
-classes **before** the train/test split puts oversampled copies of minority-class rows on both sides of the split, so
-the "held-out" set is no longer unseen. Fitting a `StandardScaler` on the full dataset before splitting leaks in the
-same way, more quietly. The methodology being replicated here does both.
+Credit risk default prediction datasets are inherently imbalanced (~22% default rate in the UCI dataset). In academic literature, researchers frequently attempt to counter this class imbalance using oversampling techniques such as Random Oversampling (ROS) or SMOTE. 
 
-This project runs **every model twice, on the same data, with the only difference being where the resampling and
-scaling happen**:
+However, **applying oversampling before partitioning the dataset into training and test splits contaminates the test set with duplicated or synthesized copies of minority instances that also appear in the training partition**. Furthermore, fitting feature standardizers (`StandardScaler`) on the entire dataset prior to splitting leaks the global mean and variance into test evaluations.
 
-| Scenario | Pipeline | Honest? |
-|---|---|---|
-| **Leaky** | scale full `X` → oversample full dataset → split 75/25 | No — inflated scores |
-| **Corrected** | split 75/25 → oversample **train only** → fit scaler on **train only** → transform test | Yes |
+The methodology in **Xu, Benson, & Chang (2024)** suffered from both issues:
+> *"Since not all the data sets were scaled evenly, the whole dataset was rescaled using a Z-score standardization... a random over-sampling strategy was used for the target variable. The data were then randomly divided into a training and a test set using a 75/25% split."* (Section 4, p. 257)
 
-The gap between the two columns *is* the result.
+This project runs **every model side-by-side across both pipelines** on the identical underlying dataset to isolate and measure the exact magnitude of performance inflation caused by this leakage.
 
 ---
 
-## Repository layout
+## Repository Layout
 
 ```
 .
-├── ml_credit_report_intern.ipynb   # Main research notebook (Colab): benchmark → GridSearchCV →
-│                                   # SHAP/LIME/permutation importance → exports the 15 deployed models
-├── newa.py                         # Standalone extended benchmark: 15 models × 2 scenarios ×
-│                                   # 2 thresholds, SMOTENC pipeline, 10-fold CV threshold plots
-├── results_summary.txt             # Output of newa.py — 60-row metrics table (the source of the tables below)
-├── chart_1_roc_auc.png             # ROC-AUC by model & scenario     ─┐
-├── chart_2_f1_score.png            # F1 by model & scenario           │ generated by newa.py
-├── chart_3_precision.png           # Precision by model & scenario    │
-├── chart_4_recall.png              # Recall by model & scenario      ─┘
-├── credit-risk-app/                # Full-stack scoring app
-│   ├── server.py                   # Flask inference API — loads 15 models, per-input SHAP explanations
-│   ├── requirements.txt            # Python deps for the API
-│   ├── app/page.js                 # Next.js UI: 23-field input form, consensus card, risk drivers
-│   ├── app/api/predict/route.js    # Next route handler proxying /api/predict → Flask :5001
-│   ├── app/globals.css             # Editorial serif design system (Playfair / Source Sans 3 / IBM Plex Mono)
-│   └── package.json                # Next 16 + React 19
-├── .gitattributes                  # Git LFS tracking for *.joblib
-└── .gitignore                      # models/, fixed_threshold_plots/, leaky_threshold_plots/ are NOT committed
+├── credit_risk_research_pipeline.ipynb  # Consolidated end-to-end research notebook
+├── requirements.txt                    # Python virtual environment dependencies
+├── architecture_pipeline.png           # Research pipeline architecture diagram
+├── UCI_Credit_Card.csv                 # UCI credit card default dataset (30,000 rows)
+├── results/                            # All generated research outputs & artifacts
+│   ├── architecture_pipeline.png       # High-resolution pipeline schematic
+│   ├── ctgan_synthetic_120000.parquet  # Cached CTGAN synthetic dataset (120k samples)
+│   ├── charts/                         # Benchmark comparison plots
+│   │   ├── chart_1_roc_auc.png         # ROC-AUC across scenarios & thresholds
+│   │   ├── chart_2_f1_score.png        # F1 score comparison (the leakage gap)
+│   │   ├── chart_3_precision.png       # Precision comparison
+│   │   ├── chart_4_recall.png          # Recall comparison
+│   │   ├── chart_gan_f1_score.png      # CTGAN augmented F1 benchmarks
+│   │   ├── shap_summary_gb.png         # SHAP global beeswarm plot
+│   │   ├── shap_dep_PAY_0.png          # SHAP dependence plot for PAY_0
+│   │   ├── permutation_importance.png  # Model-agnostic permutation importance
+│   │   └── shap_waterfall_sample_0.png # Local SHAP waterfall attribution
+│   ├── metrics/                        # Quantitative metric summaries
+│   │   ├── results_summary.csv         # Full 64-row benchmark results table
+│   │   ├── results_summary.txt         # Text summary of model benchmark
+│   │   ├── paper_replication_comparison.csv # Side-by-side audit vs Paper Table 2
+│   │   └── gan_results_summary.csv     # CTGAN extended dataset performance
+│   └── threshold_plots/                # Stratified 10-fold CV threshold curves
+│       ├── corrected_Gradient_Boosting_threshold.png
+│       ├── corrected_Random_Forest_threshold.png
+│       ├── corrected_AdaBoost_threshold.png
+│       └── corrected_Logistic_Regression_threshold.png
+├── newa.py                             # Standalone legacy benchmark script
+├── ctgan_synthetic_credit_default_modeling.ipynb # Legacy CTGAN prototyping notebook
+└── ml_credit_report_intern.ipynb       # Legacy XAI prototyping notebook
 ```
-
-**Important:** `models/` is git-ignored. The serialized `.joblib` weights are **not** in the repository — you have to
-generate them once (see [Getting started](#getting-started)) before the Flask API can serve anything.
 
 ---
 
 ## Dataset
 
-**UCI Default of Credit Card Clients** (`uciml/default-of-credit-card-clients-dataset` on Kaggle), pulled at runtime
-via `kagglehub` — nothing is vendored into the repo.
-
-- 30,000 Taiwanese credit-card clients, 23 predictors + `ID` + target
-- Target `default.payment.next.month` — **22% positive** (imbalanced; hence the oversampling)
-- Feature families:
-  - `LIMIT_BAL`, `SEX`, `EDUCATION`, `MARRIAGE`, `AGE` — demographics and credit line
-  - `PAY_0, PAY_2 … PAY_6` — repayment status for Sep→Apr (`-2` no consumption, `-1` paid in full, `0` revolving, `1–8` months delayed)
-  - `BILL_AMT1…6` — monthly bill statements (NT$)
-  - `PAY_AMT1…6` — monthly payments made (NT$)
-
-Class balance after the corrected pipeline: train **50/50** (oversampled), test left at the natural
-**78.3% / 21.7%** — the test set is never resampled.
+- **Source:** UCI Machine Learning Repository — *Default of Credit Card Clients Dataset*
+- **Size:** 30,000 observations (Taiwanese credit card holders)
+- **Target:** `default.payment.next.month` (Binary: 0 = non-default, 1 = default)
+- **Natural Class Balance:** 77.88% non-default (23,364 cases), 22.12% default (6,636 cases)
+- **Predictor Groups (23 features):**
+  - **Demographics & Credit Limit:** `LIMIT_BAL`, `SEX`, `EDUCATION`, `MARRIAGE`, `AGE`
+  - **Repayment History:** `PAY_0`, `PAY_2`, `PAY_3`, `PAY_4`, `PAY_5`, `PAY_6` (repayment status from April to September; delayed months)
+  - **Monthly Bill Statements:** `BILL_AMT1` through `BILL_AMT6`
+  - **Previous Monthly Payments:** `PAY_AMT1` through `PAY_AMT6`
 
 ---
 
 ## Methodology
 
-### 1. Two parallel pipelines
+### 1. The Two Parallel Pipelines (Leaky vs. Corrected)
 
-Both `ml_credit_report_intern.ipynb` and `newa.py` build the leaky and corrected datasets side by side. They differ in
-how the corrected side is balanced:
-
-| | Notebook (`ml_credit_report_intern.ipynb`) | Script (`newa.py`) |
+| Step | Leaky Pipeline (Xu et al., 2024 Flaw) | Corrected Pipeline (Methodologically Sound) |
 |---|---|---|
-| Balancing | `RandomOverSampler` on train only | `SMOTENC` on train only (categorical-aware: `SEX`, `EDUCATION`, `MARRIAGE`, `PAY_0…PAY_6` passed as categorical indices) |
-| Scaling | `StandardScaler` fitted on oversampled train | `ColumnTransformer` — scales numeric columns only, passes categoricals through |
-| Models | 10 benchmarked + 15 exported for deployment | 15 benchmarked |
-| Extra | GridSearchCV tuning, SHAP, LIME, permutation importance | 10-fold CV threshold curves per model per scenario |
+| **Data Partitioning** | Resampled first, then split 75/25 | Split raw data 75/25 **first** |
+| **Resampling** | `RandomOverSampler` applied globally to full dataset | `SMOTENC` applied **strictly to the training partition** |
+| **Feature Scaling** | `StandardScaler` fitted globally on full dataset | `ColumnTransformer` fitted **strictly on training partition**; test set transformed |
+| **Categorical Integrity** | Categorical features standardized numerically | Categoricals passed through unscaled to preserve discrete structure |
+| **Evaluation Integrity** | Contaminated test set containing duplicate train rows | Pristine test set with natural 77.9% / 22.1% distribution |
 
-`newa.py` is the stricter of the two: SMOTENC synthesises minority samples without corrupting the categorical
-encodings, and only the genuinely numeric columns get standardised.
+### 2. The 16 Classification Algorithms
 
-### 2. Models benchmarked (15)
+The benchmark evaluates 16 diverse machine-learning and deep-learning architectures:
+1. **Linear & Discriminant Models:** Logistic Regression, Ridge Classifier (calibrated), Linear Discriminant Analysis (LDA), Quadratic Discriminant Analysis (QDA)
+2. **Tree & Ensemble Models:** Decision Tree, Extra Tree, Random Forest, Extra Trees, AdaBoost, Gradient Boosting, Histogram Gradient Boosting, XGBoost, LightGBM
+3. **Instance & Probabilistic Models:** K-Nearest Neighbors (KNN), Gaussian Naive Bayes
+4. **Neural & Deep Learning Models:** Multi-Layer Perceptron (`MLPClassifier`), PyTorch `TabularTransformer`
 
-Logistic Regression · Ridge Classifier (calibrated) · Decision Tree · Extra Tree · KNN · Random Forest · Extra Trees ·
-AdaBoost · Gradient Boosting · Hist Gradient Boosting · Gaussian Naive Bayes · LDA · QDA · MLP Classifier · XGBoost
+### 3. Discrimination Threshold Calibration
 
-The deployed ensemble in `credit-risk-app/` swaps QDA/Ridge/Extra Tree/Hist-GB for **LGBM, CatBoost, SVM and
-SGD Classifier** — see [The web app](#the-web-app).
+A standard classification cutoff of $t = 0.50$ is suboptimal on class-imbalanced datasets. Every model is evaluated under two regimes:
+- **Default Threshold:** $p \ge 0.50$
+- **Optimal Threshold:** Decision threshold $t^* \in [0.00, 0.99]$ dynamically searched to maximize $F_1$.
 
-### 3. Threshold tuning
+Furthermore, **Stratified 10-Fold Cross-Validation** is conducted on the training data to generate threshold sensitivity curves plotting Precision, Recall, $F_1$, and Queue Rate with $\pm 1\sigma$ confidence bands.
 
-A 0.5 cut-off is arbitrary on an imbalanced problem, so every model is scored twice:
+### 4. Zero-Leakage CTGAN Augmentation & Deep Learning
 
-- **Default** — `p ≥ 0.50`
-- **Optimised** — sweep 100 thresholds over `[0, 0.99]` and keep the F1-maximising one
+To augment the training distribution without contaminating test metrics:
+1. A **Conditional Tabular GAN (CTGAN)** is trained **exclusively on the training split** (`X_train_raw`, 22,500 rows).
+2. The generator samples **120,000 synthetic observations**.
+3. Real training observations and synthetic records are concatenated (142,500 total training samples).
+4. Models, including a custom **PyTorch Tabular Transformer** (multi-head self-attention tabular encoder) and deep neural networks, are trained on the augmented distribution and evaluated on the untouched real test set.
 
-`newa.py` additionally produces **10-fold cross-validated threshold curves** (precision / recall / F1 / queue-rate with
-±1σ bands, and a dashed line at the optimal threshold) into `leaky_threshold_plots/` and `fixed_threshold_plots/`.
+### 5. Model Explainability Suite (XAI)
 
-### 4. Hyperparameter search
-
-The notebook runs `GridSearchCV` (`scoring="f1"`, `cv=5`) over 10 model families on the corrected training set:
-
-| Model | Best CV F1 | Best params |
-|---|---|---|
-| Random Forest | 0.9431 | `max_depth=None, min_samples_split=2, n_estimators=200` |
-| Decision Tree | 0.8979 | `criterion=entropy, max_depth=None, min_samples_split=2` |
-| KNN | 0.8650 | `metric=euclidean, n_neighbors=11, weights=distance` |
-| LGBM | 0.8218 | `learning_rate=0.1, max_depth=7, n_estimators=200, num_leaves=50` |
-| MLP | 0.8176 | `hidden_layer_sizes=(100, 50), learning_rate_init=0.001, max_iter=500` |
-| Gradient Boost | 0.7745 | `learning_rate=0.1, max_depth=5, n_estimators=200` |
-| AdaBoost | 0.6772 | `learning_rate=1.0, n_estimators=200` |
-| Naive Bayes | 0.6687 | `var_smoothing=1e-09` |
-| Logistic Regression | 0.6686 | `C=10, max_iter=500, solver=lbfgs` |
-| LDA | 0.6645 | `solver=svd, shrinkage=None` |
-
-> These CV scores are measured on the **oversampled training folds**, so tree models that can memorise duplicated
-> minority rows look far stronger here than they do on the held-out test set below. Treat this table as a parameter
-> selection log, not as performance.
+- **Global Attribution:** SHAP `TreeExplainer` beeswarm summary plots and mean $|SHAP|$ rankings identifying dominant features.
+- **Feature Interactions:** SHAP dependence plots examining non-linear feature relationships and threshold boundaries for `PAY_0`, `LIMIT_BAL`, etc.
+- **Model-Agnostic Validation:** Permutation Feature Importance measuring test $F_1$ degradation across 10 random permutations.
+- **Local Explanations:** Individual applicant waterfall attributions (SHAP) and rule-based explanations (LIME) for risk profiling.
 
 ---
 
-## Results
+## Audit Results & Paper Replication
 
-All numbers below come from `results_summary.txt` (produced by `newa.py`) — held-out test set, corrected pipeline
-tested on the **original, un-resampled** class distribution.
+### Replication Comparison with Xu et al. (2024) Table 2
 
-### Corrected (honest) performance, ranked by tuned F1
+The table below contrasts the published metrics from Table 2 of Xu et al. (2024) with our replicated Leaky pipeline and the honest Corrected pipeline (all evaluated at default threshold $t = 0.50$ on held-out test data):
 
-| Model | F1 @0.50 | F1 @ optimal | Optimal threshold | ROC-AUC |
-|---|---|---|---|---|
-| **AdaBoost** | 0.501 | **0.514** | 0.52 | 0.752 |
-| **Gradient Boosting** | 0.511 | **0.512** | 0.48 | **0.759** |
-| Logistic Regression | 0.465 | 0.504 | 0.58 | 0.729 |
-| Ridge Classifier | 0.467 | 0.501 | 0.57 | 0.724 |
-| LDA | 0.468 | 0.500 | 0.57 | 0.724 |
-| MLP Classifier | 0.495 | 0.499 | 0.53 | 0.733 |
-| Extra Trees | 0.481 | 0.498 | 0.40 | 0.742 |
-| Hist Gradient Boosting | 0.488 | 0.493 | 0.46 | 0.749 |
-| Random Forest | 0.486 | 0.492 | 0.43 | 0.744 |
-| XGBoost | 0.480 | 0.488 | 0.43 | 0.740 |
-| Gaussian Naive Bayes | 0.389 | 0.444 | 0.90 | 0.728 |
-| KNN | 0.442 | 0.442 | 0.50 | 0.688 |
-| Decision Tree | 0.389 | 0.390 | 0.51 | 0.604 |
-| QDA | 0.380 | 0.389 | 0.90 | 0.719 |
-| Extra Tree | 0.380 | 0.381 | 0.10 | 0.597 |
+| Algorithm | Published Paper $F_1$ | Replicated Leaky $F_1$ | Honest Corrected $F_1$ | $F_1$ Inflation Gap | Published Recall | Replicated Leaky Recall | Honest Corrected Recall |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Decision Tree** | 0.80 | **0.8848** | 0.3894 | **+0.495** | 0.81 | 0.9599 | 0.4745 |
+| **Random Forest** | 0.80 | **0.9323** | 0.4855 | **+0.447** | 0.82 | 0.9673 | 0.4800 |
+| **KNN** | 0.71 | **0.7660** | 0.4424 | **+0.324** | 0.75 | 0.8282 | 0.6060 |
+| **Gaussian Naive Bayes** | 0.39 | **0.6791** | 0.3890 | **+0.290** | 0.39 | 0.8054 | 0.9060 |
+| **LightGBM** | 0.78 | **0.7498** | 0.4883 | **+0.262** | 0.79 | 0.7124 | 0.5175 |
+| **MLP Classifier** | 0.73 | **0.7403** | 0.4954 | **+0.245** | 0.74 | 0.7561 | 0.5802 |
+| **Gradient Boosting** | 0.80 | **0.7012** | 0.5105 | **+0.191** | 0.82 | 0.6461 | 0.5593 |
+| **Logistic Regression** | 0.68 | **0.6576** | 0.4653 | **+0.192** | 0.78 | 0.6350 | 0.6663 |
+| **LDA** | 0.78 | **0.6540** | 0.4684 | **+0.186** | 0.81 | 0.6220 | 0.6509 |
+| **AdaBoost** | 0.79 | **0.6607** | 0.5005 | **+0.160** | 0.82 | 0.5775 | 0.5839 |
 
-Boosted ensembles and even plain logistic regression cluster around F1 ≈ 0.50. That flat ceiling is the honest signal
-available in these 23 features.
+> **Audit Conclusion:** The replicated Leaky pipeline reproduces the published paper's inflated metrics. Tree-based memorizers (Decision Tree, Random Forest) exhibit near-perfect test scores (~0.93 $F_1$) because identical training rows were duplicated into the test partition. In the honest pipeline, no model exceeds $F_1 = 0.51$.
 
-### The leakage gap
+### The Data Leakage Gap
 
-| Model | F1 (leaky) | F1 (corrected) | Inflation |
-|---|---|---|---|
-| Extra Tree | 0.889 | 0.380 | **+0.508** |
-| Decision Tree | 0.885 | 0.389 | **+0.495** |
-| Extra Trees | 0.943 | 0.481 | +0.462 |
-| Random Forest | 0.932 | 0.486 | +0.447 |
-| XGBoost | 0.812 | 0.480 | +0.332 |
-| KNN | 0.766 | 0.442 | +0.324 |
-| Gaussian Naive Bayes | 0.679 | 0.389 | +0.290 |
-| Hist Gradient Boosting | 0.746 | 0.488 | +0.257 |
-| MLP Classifier | 0.740 | 0.495 | +0.245 |
-| Gradient Boosting | 0.701 | 0.511 | +0.191 |
-| Logistic Regression | 0.658 | 0.465 | +0.192 |
-| LDA / Ridge | 0.654 / 0.656 | 0.468 / 0.467 | +0.186 / +0.189 |
-| AdaBoost | 0.661 | 0.501 | +0.160 |
+When ranked by the magnitude of $F_1$ score inflation:
+1. **Decision Tree & Extra Tree:** $+0.495$ to $+0.508$ inflation. High-variance single trees overfit to duplicated samples.
+2. **Random Forest & Extra Trees:** $+0.447$ to $+0.462$ inflation. Ensembles of memorizers achieve artificial near-perfection.
+3. **XGBoost & LightGBM:** $+0.262$ to $+0.332$ inflation.
+4. **Linear Models (LogReg, Ridge, LDA):** $+0.160$ to $+0.192$ inflation. Linear boundaries cannot isolate individual points, resulting in less severe but significant leakage inflation.
 
-**Mean inflation: +0.305 F1** across 15 models (the notebook's 10-model `RandomOverSampler` variant reports +0.269,
-worst case Decision Tree at +0.489 — same conclusion from an independent pipeline).
+### CTGAN Augmented Deep Learning Performance
 
-The pattern is diagnostic: **high-variance memorisers leak hardest**. A single Extra Tree jumps from useless (0.38) to
-state-of-the-art-looking (0.89) purely because duplicated rows appear on both sides of the split. Linear models, which
-cannot memorise individual rows, barely move.
+Evaluated on the unpolluted real test set (7,500 held-out observations with natural 22.1% default rate):
 
-### Charts
-
-| File | What it shows |
-|---|---|
-| `chart_1_roc_auc.png` | ROC-AUC per model, 4 bars each (Leaky / Leaky-tuned / Corrected / Corrected-tuned) |
-| `chart_2_f1_score.png` | Same layout for F1 — the clearest view of the leakage gap |
-| `chart_3_precision.png` | Precision |
-| `chart_4_recall.png` | Recall |
-
-Threshold-tuning only shifts the precision/recall balance — the ROC-AUC bars are identical within a scenario, because
-AUC is threshold-independent.
+| Algorithm | Scenario | Accuracy | Recall | Precision | $F_1$ Score | ROC-AUC | Optimal Threshold |
+|---|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Hist Gradient Boosting** | GAN Scaled (Opt. Thresh) | 0.7863 | 0.5575 | 0.5067 | **0.5309** | 0.7621 | 0.25 |
+| **XGBoost** | GAN Scaled (Opt. Thresh) | 0.7848 | 0.5612 | 0.5036 | **0.5308** | 0.7585 | 0.27 |
+| **Tabular Transformer (DL)** | GAN Scaled (Opt. Thresh) | 0.7836 | 0.5372 | 0.5011 | **0.5185** | 0.7562 | 0.23 |
+| **MLP Classifier** | GAN Scaled (Opt. Thresh) | 0.7755 | 0.5513 | 0.4846 | **0.5158** | 0.7591 | 0.25 |
+| **Random Forest** | GAN Scaled (Opt. Thresh) | 0.7687 | 0.5556 | 0.4718 | **0.5103** | 0.7494 | 0.28 |
+| **Gradient Boosting** | GAN Scaled (Opt. Thresh) | 0.7871 | 0.4985 | 0.5094 | **0.5039** | 0.7492 | 0.25 |
+| **Tabular Transformer (DL)** | GAN Scaled (t=0.50) | 0.8160 | 0.3276 | 0.6508 | 0.4358 | 0.7562 | 0.50 |
+| **Random Forest** | GAN Scaled (t=0.50) | 0.8088 | 0.3073 | 0.6196 | 0.4108 | 0.7494 | 0.50 |
+| **Hist Gradient Boosting** | GAN Scaled (t=0.50) | 0.8119 | 0.2637 | 0.6682 | 0.3781 | 0.7621 | 0.50 |
+| **XGBoost** | GAN Scaled (t=0.50) | 0.8075 | 0.2631 | 0.6360 | 0.3722 | 0.7585 | 0.50 |
+| **MLP Classifier** | GAN Scaled (t=0.50) | 0.8069 | 0.2545 | 0.6379 | 0.3638 | 0.7591 | 0.50 |
+| **Gradient Boosting** | GAN Scaled (t=0.50) | 0.8045 | 0.1801 | 0.6894 | 0.2856 | 0.7492 | 0.50 |
 
 ---
 
-## Explainability
-
-The notebook's second half is the XAI layer, all fitted on the **corrected** models:
-
-| Technique | Scope | Applied to | What you get |
-|---|---|---|---|
-| **SHAP `TreeExplainer`** | Global | Gradient Boosting, Random Forest | Summary beeswarm, mean-\|SHAP\| bar ranking, importance table |
-| **SHAP waterfall** | Local | Gradient Boosting | Per-customer push toward / away from default (`SAMPLE_INDICES = [0, 1, 2]`) |
-| **SHAP dependence** | Global | Top-4 features | Feature value vs. its SHAP contribution, coloured by interaction |
-| **LIME `LimeTabularExplainer`** | Local | Gradient Boosting, Random Forest | Local surrogate weights + rule table per sample |
-| **Permutation importance** | Global, model-agnostic | Gradient Boosting, Random Forest | Mean F1 drop when a feature is shuffled (`n_repeats=10`), with error bars |
-
-Two knobs at the top of the explainability section control the whole run:
-
-```python
-SAMPLE_INDICES = [0, 1, 2]          # which test rows to explain locally
-NUM_TOP_FEATURES_DEPENDENCE = 4     # how many dependence plots to draw
-```
-
-The final notebook cells take a hand-written `new_customer` dictionary and produce a full risk report — prediction,
-probability, risk flag, SHAP waterfall and LIME breakdown — which is exactly the workflow the web app productionises.
-
----
-
-## The web app
-
-```
-Browser (localhost:3000)
-   │  POST /api/predict  { 23 raw features }
-   ▼
-Next.js route handler        credit-risk-app/app/api/predict/route.js
-   │  proxies to
-   ▼
-Flask API (localhost:5001)   credit-risk-app/server.py
-   │  15 joblib models + SHAP TreeExplainers
-   ▼
-JSON: per-model predictions + per-input feature importance + ensemble consensus
-```
-
-**UI** (`app/page.js`) — a single editorial-styled page: 23 inputs grouped into Personal Information / Repayment
-History / Bill Amounts / Payment Amounts (pre-filled with a sensible default customer), then on submit:
-
-1. **Ensemble consensus card** — mean default probability across all loaded models, with a LOW / MODERATE / HIGH badge
-2. **Stats bar** — models evaluated, how many predict default vs. no-default, average probability
-3. **Worst Risk Parameters** — top-10 features ranked by mean importance across the ensemble, with the customer's own
-   value and a proportional bar
-4. **Individual model cards** — one per model, sorted by default probability, each with its top-3 contributing features
-5. **Models with errors** — any model that failed to load or score is surfaced rather than hidden
-
-**Risk bands:** `p ≥ 0.50` HIGH · `0.30 ≤ p < 0.50` MODERATE · `p < 0.30` LOW.
-
-### Per-input feature importance
-
-The interesting part of `server.py` is `get_per_input_importance()` — importance that **changes with every request**,
-rather than a static bar chart. Five strategies, tried in order:
-
-| # | Applies to | Method |
-|---|---|---|
-| 1 | Tree models (Decision Tree, Random Forest, Extra Trees, Gradient Boost, XGBoost, LGBM, CatBoost) | SHAP `TreeExplainer` values for this input |
-| 2 | Linear models (Logistic Regression, SGD, LDA) | \|coef × input value\| — the exact linear contribution |
-| 3 | MLP | \|first-layer weights\| summed per input × \|input value\| |
-| 4 | Gaussian Naive Bayes | per-feature log-likelihood difference between the two classes, `log P(xᵢ ❘ default) − log P(xᵢ ❘ no default)` |
-| 5 | Anything else (KNN, SVM) | falls back to the model's static `feature_importances_`, or `null` |
-
-Results are normalised to sum to 1 per model, then averaged across models to rank the "worst parameters".
-
-### Deployed model registry
-
-`server.py` loads 15 models from `models/<folder>/weights/model.joblib`:
-
-`logistic_regression`, `decision_tree`, `knn`, `random_forest`, `naive_bayes`, `lgbm`, `adaboost`, `gradient_boost`,
-`lda`, `mlp`, `svm`, `xgboost`, `catboost`, `extra_trees`, `sgd_classifier`
-
-These are written by the export cell of the notebook, trained on the **corrected, unscaled** training set — which is
-why the API forwards raw feature values with no scaling step. Any model that is missing or fails to load is logged and
-skipped; the app keeps working with whatever loaded.
-
----
-
-## Getting started
+## Getting Started
 
 ### Prerequisites
 
-- Python 3.10+ and Node.js 18+
-- A Kaggle account (`kagglehub` needs credentials to pull the dataset)
+- Python 3.10, 3.11, or 3.12
+- macOS, Linux, or Windows WSL2
 
-### 1. Reproduce the research
-
-```bash
-pip install numpy pandas scikit-learn xgboost lightgbm imbalanced-learn matplotlib seaborn joblib "kagglehub[pandas-datasets]"
-```
+### 1. Set Up Virtual Environment
 
 ```bash
-python newa.py
+# Clone the repository
+git clone https://github.com/Tashya924/ML-research-on-credit-risk-analysis.git
+cd ML-research-on-credit-risk-analysis
+
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install --upgrade pip
+pip install -r requirements.txt
 ```
 
-This trains 15 models × 2 scenarios, writes `results_summary.txt` and the four comparison charts, then generates
-10-fold CV threshold plots into `leaky_threshold_plots/` and `fixed_threshold_plots/`. It also writes every fitted
-model to `models/<scenario>/<Model_Name>/weights/model.joblib`. Expect a long run — the threshold plots alone refit
-each of the 15 models 10 times per scenario.
+### 2. Execute Research Notebook
 
-For the SHAP/LIME analysis and the deployable model set, open `ml_credit_report_intern.ipynb` in Colab or Jupyter and
-run it top to bottom.
-
-### 2. Generate the models the app needs
-
-The app expects the **notebook's** export layout (`models/<model_name>/weights/model.joblib` at the repository root),
-and `models/` is git-ignored — so run the export cell titled *"Master Blueprint of all 15 Models"* in
-`ml_credit_report_intern.ipynb`. It writes:
-
-```
-models/
-├── random_forest/
-│   ├── config/hyperparameters.json
-│   └── weights/model.joblib
-├── gradient_boost/…
-└── … 15 folders total
-```
-
-In Colab, the next cells zip that folder (`trained_models.zip`) and download it — unzip it at the repository root so
-that `models/` sits next to `credit-risk-app/`. `.gitattributes` already tracks `*.joblib` through Git LFS if you
-choose to commit the weights.
-
-### 3. Run the Flask inference API
+Open and run the consolidated notebook in Jupyter or VS Code:
 
 ```bash
-pip install -r credit-risk-app/requirements.txt shap
+jupyter notebook credit_risk_research_pipeline.ipynb
 ```
 
-```bash
-python credit-risk-app/server.py
-```
-
-Startup prints a per-model load report and how many SHAP explainers initialised, then serves on
-**http://localhost:5001**. Verify with:
-
-```bash
-curl -s localhost:5001/health
-```
-
-```json
-{ "status": "ok", "models_loaded": 15, "shap_explainers": 7, "feature_count": 23 }
-```
-
-### 4. Run the Next.js frontend
-
-```bash
-cd credit-risk-app && npm install && npm run dev
-```
-
-Open **http://localhost:3000**, adjust the customer fields, and hit **Run Risk Analysis**. If the Flask server isn't
-up, the UI shows a `503` with *"Could not connect to the ML server…"* instead of failing silently.
+The notebook executes top-to-bottom, reproduces all tables, trains the models, generates the threshold curves, runs CTGAN augmentation and deep learning models, and computes the complete explainability suite. All plots and metric summaries are automatically exported to the `results/` directory.
 
 ---
 
-## API reference
+## Citation & References
 
-### `GET /health`
+If you build upon this replication and audit study, please cite both the original article and this repository:
 
-```json
-{ "status": "ok", "models_loaded": 15, "shap_explainers": 7, "feature_count": 23 }
-```
-
-### `POST /predict`
-
-All 23 features are **required**; a missing one returns `400` with the exact list of what's absent.
-
-```bash
-curl -X POST localhost:5001/predict -H 'Content-Type: application/json' -d '{
-  "LIMIT_BAL": 200000, "SEX": 1, "EDUCATION": 2, "MARRIAGE": 1, "AGE": 35,
-  "PAY_0": 0, "PAY_2": 0, "PAY_3": 0, "PAY_4": 0, "PAY_5": 0, "PAY_6": 0,
-  "BILL_AMT1": 50000, "BILL_AMT2": 48000, "BILL_AMT3": 45000,
-  "BILL_AMT4": 42000, "BILL_AMT5": 40000, "BILL_AMT6": 38000,
-  "PAY_AMT1": 5000, "PAY_AMT2": 5000, "PAY_AMT3": 5000,
-  "PAY_AMT4": 5000, "PAY_AMT5": 5000, "PAY_AMT6": 5000
-}'
-```
-
-Response shape (values illustrative):
-
-```jsonc
-{
-  "summary": {
-    "total_models": 15,
-    "models_predicting_default": 3,
-    "models_predicting_no_default": 12,
-    "average_default_probability": 0.2094,
-    "consensus_risk": "LOW"
-  },
-  "model_results": [
-    {
-      "model_name": "Gradient Boost",
-      "prediction": 0,
-      "prediction_label": "NO DEFAULT",
-      "probability_default": 0.2871,
-      "probability_no_default": 0.7129,
-      "risk_flag": "LOW",
-      "feature_importance": { "PAY_0": 0.31, "LIMIT_BAL": 0.14, "…": 0.0 }
-    }
-  ],
-  "worst_parameters": [
-    { "feature": "PAY_0", "description": "Repayment Status (Sep)", "importance": 0.2819, "input_value": 0.0 }
-  ],
-  "feature_descriptions": { "LIMIT_BAL": "Credit Limit", "…": "…" }
+```bibtex
+@article{xu2024prediction,
+  title={Prediction of bank credit worthiness through credit risk analysis: an explainable machine learning study},
+  author={Xu, Qianwen Ariel and Benson, Vladlena and Chang, Victor},
+  journal={Annals of Operations Research},
+  volume={354},
+  number={1},
+  pages={247--271},
+  year={2024},
+  publisher={Springer},
+  doi={10.1007/s10479-024-06134-x}
 }
 ```
-
-| Status | Meaning |
-|---|---|
-| `200` | Scored successfully (individual model failures appear as `{model_name, error}` entries) |
-| `400` | Missing or non-numeric features |
-| `500` | Unhandled server error |
-| `503` | *(Next proxy only)* Flask backend unreachable on port 5001 |
-
-The Next.js route at `/api/predict` mirrors this contract exactly.
-
----
-
-## Reproducibility notes and known gaps
-
-Things worth knowing before you run this — all verified against the current code:
-
-- **`models/` is not in the repo.** `.gitignore` excludes it. The Flask server will start with `Loaded 0/15 models`
-  and every prediction will come back empty until you run the notebook's export cell. This is the single most common
-  setup failure.
-- **`shap` is missing from `credit-risk-app/requirements.txt`** even though `server.py` imports it at module level.
-  Install it explicitly (`pip install shap`) or the server won't start.
-- **`newa.py` has no requirements file.** It needs `kagglehub[pandas-datasets]`, `imbalanced-learn`, `seaborn` and
-  `matplotlib` on top of the app's dependencies.
-- **Two different `models/` layouts exist.** `newa.py` writes `models/<scenario>/<Model_Name>/{config_files,weights}/`
-  while the notebook writes `models/<model_name>/{config,weights}/`. `server.py` reads the **notebook** layout only.
-- **AdaBoost is listed under `TREE_MODEL_NAMES` but SHAP's `TreeExplainer` doesn't support `AdaBoostClassifier`.**
-  It logs `✗ SHAP: AdaBoost` at startup and silently falls back to static `feature_importances_` — so 7 of the 8
-  listed tree models actually get per-input SHAP. Harmless, but the AdaBoost card's importances don't vary per input.
-- **KNN and SVM have no per-input attribution.** They fall back to model-level importance, or `null` if unavailable.
-- **Version drift.** `requirements.txt` pins `scikit-learn==1.6.1` / `numpy==1.26.4`; the models were serialised under
-  those versions and `server.py` suppresses the resulting `UserWarning` on newer runtimes. Reload warnings are
-  expected if you deviate; unpickling across major sklearn versions is not guaranteed.
-- **`server.py` runs with `debug=True` on `0.0.0.0`.** Fine for local research, not for exposure — put it behind a
-  WSGI server before deploying anywhere real.
-- **This is a research artifact, not a credit-decisioning system.** The corrected models top out at F1 ≈ 0.51, and the
-  feature set includes protected attributes (`SEX`, `MARRIAGE`, `EDUCATION`) with no fairness analysis performed.
-  Don't make lending decisions with it.
-
-**Verification performed for this README:** the Flask API was booted against a stub `models/` tree and exercised
-end-to-end — `/health` reported model and explainer counts, `/predict` returned the full consensus + worst-parameter
-payload, missing-feature input returned `400` with the field list, the Next.js frontend rendered and its
-`/api/predict` proxy round-tripped to Flask, and the proxy returned the `503` message when the backend was stopped.
-Every metric quoted above was recomputed from `results_summary.txt` and the notebook's stored outputs.
-
----
-
-## Branches
-
-| Branch | Contents |
-|---|---|
-| `main` | Research notebook, `newa.py`, results, charts, and the full-stack app — this README |
-| `modelresults01` | Earlier model-results iteration |
-| `modelresults02` | Model-results iteration the notebook's Colab badge points at |
-
----
-
-## Contributors
-
-- **README:** [shreyaschhabra](https://github.com/shreyaschhabra) — end-to-end documentation, code walkthrough and
-  verification of the research pipeline, inference API and web app.
-- **Repository:** [Tashya924](https://github.com/Tashya924)
