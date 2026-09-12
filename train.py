@@ -177,7 +177,7 @@ def main():
         y_train_raw=data_normal_corrected["y_train_raw"],
         categorical_features=data_normal_corrected["cat_cols"],
         total_samples=ctgan_sample_count,
-        cache_path="results/ctgan_synthetic_120000.parquet"
+        cache_path="data/ctgan_synthetic_120000.parquet"
     )
 
     train_clean = pd.concat([data_normal_corrected["X_train_raw"], data_normal_corrected["y_train_raw"]], axis=1)

@@ -27,18 +27,12 @@ models/
 charts/
 *.png
 !architecture_pipeline.png
-!results/architecture_pipeline.png
 summary/charts/
 summary/threshold_plots/
 summary/xai/
-results/charts/
-results/threshold_plots/
-leaky_threshold_plots/
-fixed_threshold_plots/
 
 # Data Artifacts & Synthetic Datasets
 data/
-results/ctgan_synthetic_*.parquet
 *.parquet
 *.csv
 !UCI_Credit_Card.csv

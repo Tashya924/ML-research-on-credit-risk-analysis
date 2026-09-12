@@ -33,7 +33,7 @@ def generate_ctgan_synthetic_data(
     default_ratio: Optional[float] = None,
     epochs: int = 20,
     batch_size: int = 500,
-    cache_path: Optional[str] = "results/ctgan_synthetic_120000.parquet",
+    cache_path: Optional[str] = "data/ctgan_synthetic_120000.parquet",
     random_state: int = 42
 ) -> pd.DataFrame:
     """

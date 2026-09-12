@@ -50,7 +50,7 @@ def parse_args():
                         help="CTGAN training epochs (default: 20)")
     parser.add_argument("--batch-size", type=int, default=500,
                         help="CTGAN training batch size (default: 500)")
-    parser.add_argument("--cache-path", type=str, default="results/ctgan_synthetic_120000.parquet",
+    parser.add_argument("--cache-path", type=str, default="data/ctgan_synthetic_120000.parquet",
                         help="Path to pre-trained CTGAN parquet cache if available")
     parser.add_argument("--data-path", type=str, default="UCI_Credit_Card.csv",
                         help="Path to raw credit card dataset")

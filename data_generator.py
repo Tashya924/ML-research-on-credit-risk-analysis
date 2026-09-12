@@ -147,7 +147,7 @@ def main():
     for m in models_to_run:
         print(f"\n>>> Running {m.upper()} Generation ({mode.upper()}) <<<")
         if m == "gan":
-            cache_file = "results/ctgan_synthetic_120000.parquet" if mode == "corrected" else None
+            cache_file = "data/ctgan_synthetic_120000.parquet" if mode == "corrected" else None
             syn_df = generate_ctgan_synthetic_data(
                 X_train_raw=X_train_to_use,
                 y_train_raw=y_train_to_use,
