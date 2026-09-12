@@ -69,8 +69,8 @@
  0.797467 0.464738   0.549929 0.503757 0.715507       0.61         Ridge Classifier    data_normal_corrected (Opt. Thresh)
  0.667865 0.631247   0.682967 0.656089 0.717368       0.50         Ridge Classifier                      data_normal_leaky
  0.553330 0.910967   0.532131 0.671824 0.717368       0.29         Ridge Classifier        data_normal_leaky (Opt. Thresh)
- 0.795467 0.503315   0.540453 0.521223 0.759580       0.25 Tabular Transformer (DL)       data_gan_corrected (Opt. Thresh)
- 0.815467 0.327908   0.669127 0.440129 0.759580       0.50 Tabular Transformer (DL)            data_gan_corrected (t=0.50)
+ 0.784267 0.552140   0.511446 0.531014 0.763653       0.20 Tabular Transformer (DL)       data_gan_corrected (Opt. Thresh)
+ 0.815733 0.342375   0.661234 0.451152 0.763653       0.50 Tabular Transformer (DL)            data_gan_corrected (t=0.50)
  0.781333 0.568415   0.505088 0.534884 0.767140       0.26                  XGBoost       data_gan_corrected (Opt. Thresh)
  0.810133 0.279687   0.669553 0.394558 0.767140       0.50                  XGBoost            data_gan_corrected (t=0.50)
  0.772533 0.469560   0.485358 0.477328 0.739012       0.50                  XGBoost                  data_normal_corrected
