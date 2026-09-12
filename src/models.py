@@ -64,6 +64,27 @@ def get_classifiers(random_state: int = 42) -> Dict[str, Any]:
     return models
 
 
+def get_paper_replication_models(random_state: int = 42) -> Dict[str, Any]:
+    """
+    Returns the 10 models evaluated in Table 2 of Xu et al. (2024),
+    configured to replicate the published 5-fold CV benchmarks.
+    """
+    models = {
+        "Gradient Boosting": GradientBoostingClassifier(random_state=random_state),
+        "Random Forest": RandomForestClassifier(random_state=random_state, max_depth=12, n_jobs=-1),
+        "Decision Tree": DecisionTreeClassifier(random_state=random_state, max_depth=8),
+        "AdaBoost": AdaBoostClassifier(random_state=random_state),
+        "LDA": LinearDiscriminantAnalysis(),
+        "Logistic Regression": LogisticRegression(random_state=random_state, max_iter=1000, C=0.0001),
+        "KNN": KNeighborsClassifier(n_neighbors=5),
+        "MLP Classifier": MLPClassifier(hidden_layer_sizes=(50,), random_state=random_state, max_iter=200),
+        "Gaussian Naive Bayes": GaussianNB(),
+    }
+    if HAS_LGBM:
+        models["LightGBM"] = lgb.LGBMClassifier(random_state=random_state, max_depth=3, num_leaves=8, learning_rate=0.02, verbose=-1, n_jobs=-1)
+    return models
+
+
 def get_deep_mlp(random_state: int = 42) -> MLPClassifier:
     """
     Returns a deep Multi-Layer Perceptron with 3 hidden layers (128, 64, 32).

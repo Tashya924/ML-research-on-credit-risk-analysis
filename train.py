@@ -35,9 +35,9 @@ from src.data import (
     get_feature_lists, TARGET_COL
 )
 from src.models import get_classifiers, get_deep_mlp, TabularTransformer, PyTorchModelWrapper
-from src.evaluation import evaluate_predictions, optimize_threshold, generate_cv_threshold_plot, audit_paper_replication
+from src.evaluation import evaluate_predictions, optimize_threshold, generate_cv_threshold_plot, audit_paper_replication, replicate_paper_table2
 from src.generators import generate_ctgan_synthetic_data, generate_tabddpm_synthetic_data
-from src.visualizations import plot_scenario_comparisons, plot_leakage_gap
+from src.visualizations import plot_scenario_comparisons, plot_leakage_gap, plot_paper_replication_match
 from src.explainability import (
     generate_shap_analysis, generate_lime_analysis,
     generate_permutation_importance_plot, score_applicant_risk
@@ -129,18 +129,26 @@ def main():
 
     benchmark_df = pd.DataFrame(all_benchmark_results)
 
-    # 4. PAPER REPLICATION AUDIT (XU ET AL. 2024 TABLE 2)
-    # Map naive scenario names for audit comparison
+    # 4.A EXACT PAPER REPLICATION BENCHMARK (XU ET AL. 2024 TABLE 2)
+    rep_df = replicate_paper_table2(X, y, random_state=42, n_splits=5)
+    rep_csv_path = os.path.join(metrics_dir, "paper_replication_comparison.csv")
+    rep_df.to_csv(rep_csv_path, index=False)
+    print(f"\n[✓] Saved Exact Paper Replication Comparison to '{rep_csv_path}':\n")
+    print(rep_df[["Algorithm", "Paper Recall", "Replicated Recall", "Diff Recall", "Paper F1", "Replicated F1", "Paper Accuracy", "Replicated Accuracy"]].to_string(index=False))
+
+    plot_paper_replication_match(rep_df, os.path.join(charts_dir, "paper_replication_match.png"))
+
+    # 4.B METHODOLOGICAL DATA LEAKAGE AUDIT (NAIVE OVERFIT LEAKAGE VS HONEST CORRECTED)
     audit_bench_df = benchmark_df.copy()
     audit_bench_df["Scenario"] = audit_bench_df["Scenario"].replace({
         "data_normal_leaky": "Leaky",
         "data_normal_corrected": "Corrected"
     })
     audit_df = audit_paper_replication(audit_bench_df)
-    audit_csv_path = os.path.join(metrics_dir, "paper_replication_comparison.csv")
-    audit_df.to_csv(audit_csv_path, index=False)
-    print(f"\n[✓] Saved Paper Replication Audit to '{audit_csv_path}':\n")
-    print(audit_df[["Algorithm", "Paper F1", "Leaky F1 (Replicated)", "Corrected F1 (Honest)", "F1 Inflation Gap"]].to_string(index=False))
+    leakage_csv_path = os.path.join(metrics_dir, "data_leakage_audit.csv")
+    audit_df.to_csv(leakage_csv_path, index=False)
+    print(f"\n[✓] Saved Methodological Data Leakage Audit to '{leakage_csv_path}':\n")
+    print(audit_df[["Algorithm", "Paper F1", "Leaky F1 (Naive ROS)", "Corrected F1 (Honest)", "F1 Inflation Gap"]].to_string(index=False))
 
     plot_leakage_gap(audit_df, os.path.join(charts_dir, "leakage_gap.png"))
 
