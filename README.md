@@ -23,16 +23,29 @@ python train.py --quick
 ```
 > All outputs (metrics tables, threshold plots, comparison charts, and XAI plots) are automatically generated in the `summary/` directory.
 
-### 2. Generate Synthetic Tabular Datasets (GAN & Diffusion)
-To generate synthetic credit card data with custom ratios of Default vs. Non-Default:
+### 2. Generate Synthetic Tabular Datasets (Separate GAN & Diffusion Files)
+To generate synthetic credit card data with selectable ratios of Default vs. Non-Default, dedicated standalone files are provided for each approach:
+
 ```bash
-# Generate balanced 50:50 data using GAN (CTGAN)
-python data_generator.py --model gan --mode corrected --defaults 30000 --non-defaults 30000 --output data/data_gan_corrected.csv
+# --- A. Generate GAN Datasets Separately (data_generator_gan.py / generate_gan.py) ---
+# Generate 50:50 balanced corrected GAN dataset (30,000 defaults, 30,000 non-defaults)
+python data_generator_gan.py --mode corrected --defaults 30000 --non-defaults 30000
 
-# Generate balanced data using Diffusion (TabDDPM)
-python data_generator.py --model diffusion --mode corrected --defaults 10000 --non-defaults 10000 --output data/data_diffusion_corrected.csv
+# Or generate with a specific default ratio (e.g. 30% defaults out of 60,000)
+python data_generator_gan.py --mode corrected --ratio 0.3 --total 60000
 
-# Interactive mode (follow on-screen prompts)
+# Or run interactive prompt mode
+python data_generator_gan.py --interactive
+
+# --- B. Generate Diffusion Datasets Separately (data_generator_diffusion.py / generate_diffusion.py) ---
+# Generate balanced corrected TabDDPM diffusion dataset (1,000 defaults, 1,000 non-defaults)
+python data_generator_diffusion.py --mode corrected --defaults 1000 --non-defaults 1000
+
+# Or run interactive prompt mode
+python data_generator_diffusion.py --interactive
+
+# --- C. Unified Generator (data_generator.py) ---
+# Supports running both generators via a single command or interactive menu
 python data_generator.py --interactive
 ```
 
@@ -172,7 +185,11 @@ Evaluated on the unpolluted pristine test partition (7,500 samples, 22.12% natur
 ```
 .
 ├── train.py                                # Main training & evaluation pipeline (naive entrypoint)
-├── data_generator.py                       # Main synthetic dataset generator (naive CLI)
+├── data_generator.py                       # Unified synthetic dataset generator (naive CLI)
+├── data_generator_gan.py                   # Dedicated GAN (CTGAN) dataset generator
+├── data_generator_diffusion.py             # Dedicated Diffusion (TabDDPM) dataset generator
+├── generate_gan.py                         # Convenience wrapper for GAN generation
+├── generate_diffusion.py                   # Convenience wrapper for Diffusion generation
 ├── run_pipeline.py                         # Alias wrapper for train.py
 ├── generate_synthetic_data.py              # Alias wrapper for data_generator.py
 ├── credit_risk_research_pipeline.ipynb     # Consolidated end-to-end research notebook
@@ -182,7 +199,9 @@ Evaluated on the unpolluted pristine test partition (7,500 samples, 22.12% natur
 ├── src/                                    # Clean modular source package
 │   ├── __init__.py                         # Package initialization
 │   ├── data.py                             # Data loading & Leaky vs. Corrected pipelines
-│   ├── generators.py                       # Zero-leakage CTGAN & TabDDPM diffusion synthesizers
+│   ├── generator_gan.py                    # Dedicated CTGAN generator module
+│   ├── generator_diffusion.py              # Dedicated TabDDPM diffusion generator module
+│   ├── generators.py                       # Facade re-exporting GAN & Diffusion generators
 │   ├── models.py                           # 16 ML classifiers, Deep MLP & PyTorch TabularTransformer
 │   ├── evaluation.py                       # Evaluation metrics, threshold tuning & paper audit
 │   ├── explainability.py                   # SHAP, LIME, Permutation Importance & risk scoring
@@ -224,15 +243,32 @@ python train.py
 python train.py --quick
 ```
 
-### 3. Generate Custom Synthetic Datasets (`data_generator.py`)
+### 3. Generate Custom Synthetic Datasets Separately
+
+#### A. Generate GAN Datasets (`data_generator_gan.py` / `generate_gan.py`)
 ```bash
-# Generate 50:50 balanced CTGAN data
-python data_generator.py --model gan --mode corrected --defaults 30000 --non-defaults 30000 --output data/data_gan_corrected.csv
+# Generate 50:50 balanced CTGAN data (30,000 defaults, 30,000 non-defaults)
+python data_generator_gan.py --mode corrected --defaults 30000 --non-defaults 30000
 
-# Generate 50:50 balanced TabDDPM diffusion data
-python data_generator.py --model diffusion --mode corrected --defaults 10000 --non-defaults 10000 --output data/data_diffusion_corrected.csv
+# Or with ratio specification (e.g. 50% default out of 60,000)
+python data_generator_gan.py --mode corrected --ratio 0.5 --total 60000
 
-# Interactive guided mode
+# Interactive mode
+python data_generator_gan.py --interactive
+```
+
+#### B. Generate Diffusion Datasets (`data_generator_diffusion.py` / `generate_diffusion.py`)
+```bash
+# Generate balanced TabDDPM diffusion data (1,000 defaults, 1,000 non-defaults)
+python data_generator_diffusion.py --mode corrected --defaults 1000 --non-defaults 1000
+
+# Interactive mode
+python data_generator_diffusion.py --interactive
+```
+
+#### C. Unified Multi-Model Generator (`data_generator.py`)
+```bash
+# Interactive menu for choosing model, leakage mode, and class counts
 python data_generator.py --interactive
 ```
 

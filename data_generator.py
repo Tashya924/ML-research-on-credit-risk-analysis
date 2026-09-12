@@ -1,29 +1,27 @@
 """
-Data Generator (Naive CLI for Evaluators)
------------------------------------------
+Data Generator (Unified CLI for Evaluators)
+-------------------------------------------
 Generates synthetic tabular credit card datasets using GAN and Diffusion models,
 with selectable ratios of Default (Target=1) vs Non-Default (Target=0).
 
+Dedicated Separated Scripts:
+  - data_generator_gan.py        (Generate CTGAN datasets separately)
+  - data_generator_diffusion.py  (Generate TabDDPM Diffusion datasets separately)
+
 Supports both 'corrected' (zero-leakage, train only) and 'leaky' (trained on full data) modes:
-- data_gan_corrected
-- data_gan_leaky
-- data_diffusion_corrected
-- data_diffusion_leaky
+  - data_gan_corrected
+  - data_gan_leaky
+  - data_diffusion_corrected
+  - data_diffusion_leaky
 
 Usage:
     # 1. Generate GAN Corrected (50:50 balanced: 30k defaults, 30k non-defaults)
     python data_generator.py --model gan --mode corrected --defaults 30000 --non-defaults 30000 --output data/data_gan_corrected.csv
 
-    # 2. Generate GAN Leaky (trained on full dataset)
-    python data_generator.py --model gan --mode leaky --defaults 30000 --non-defaults 30000 --output data/data_gan_leaky.csv
+    # 2. Generate Diffusion Corrected (TabDDPM)
+    python data_generator.py --model diffusion --mode corrected --defaults 1000 --non-defaults 1000 --output data/data_diffusion_corrected.csv
 
-    # 3. Generate Diffusion Corrected (TabDDPM)
-    python data_generator.py --model diffusion --mode corrected --defaults 10000 --non-defaults 10000 --output data/data_diffusion_corrected.csv
-
-    # 4. Generate by specifying target ratio (e.g. 0.5 for 50% defaults)
-    python data_generator.py --model gan --ratio 0.5 --total 60000 --output data/data_gan_corrected.csv
-
-    # 5. Interactive prompt mode
+    # 3. Interactive prompt mode
     python data_generator.py --interactive
 """
 
