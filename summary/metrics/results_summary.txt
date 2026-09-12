@@ -1,0 +1,37 @@
+ Accuracy   Recall  Precision       F1  ROC_AUC  Threshold                Algorithm                               Scenario
+ 0.685867 0.491260   0.350236 0.408931 0.616128       0.50            Decision Tree                  data_normal_corrected
+ 0.685867 0.491260   0.350236 0.408931 0.616128       0.50            Decision Tree    data_normal_corrected (Opt. Thresh)
+ 0.874508 0.959918   0.820528 0.884767 0.874206       0.50            Decision Tree                      data_normal_leaky
+ 0.874508 0.959918   0.820528 0.884767 0.874206       0.50            Decision Tree        data_normal_leaky (Opt. Thresh)
+ 0.760933 0.595539   0.468246 0.524277 0.766823       0.21      Deep MLP Classifier data_diffusion_corrected (Opt. Thresh)
+ 0.814800 0.359855   0.646104 0.462253 0.766823       0.50      Deep MLP Classifier      data_diffusion_corrected (t=0.50)
+ 0.782667 0.553345   0.508024 0.529717 0.766144       0.27      Deep MLP Classifier       data_gan_corrected (Opt. Thresh)
+ 0.816533 0.332731   0.672351 0.445161 0.766144       0.50      Deep MLP Classifier            data_gan_corrected (t=0.50)
+ 0.781867 0.584690   0.505999 0.542506 0.772347       0.24        Gradient Boosting       data_gan_corrected (Opt. Thresh)
+ 0.819067 0.352622   0.673963 0.463000 0.772347       0.50        Gradient Boosting            data_gan_corrected (t=0.50)
+ 0.763867 0.573237   0.472195 0.517833 0.764923       0.50        Gradient Boosting                  data_normal_corrected
+ 0.784133 0.524412   0.511765 0.518011 0.764923       0.55        Gradient Boosting    data_normal_corrected (Opt. Thresh)
+ 0.723592 0.646086   0.766491 0.701157 0.796731       0.50        Gradient Boosting                      data_normal_leaky
+ 0.692176 0.835579   0.650511 0.731522 0.796731       0.36        Gradient Boosting        data_normal_leaky (Opt. Thresh)
+ 0.663600 0.651597   0.357237 0.461473 0.719913       0.50      Logistic Regression                  data_normal_corrected
+ 0.790933 0.479807   0.530313 0.503797 0.719913       0.60      Logistic Regression    data_normal_corrected (Opt. Thresh)
+ 0.668122 0.634999   0.681868 0.657600 0.718890       0.50      Logistic Regression                      data_normal_leaky
+ 0.568567 0.884360   0.543103 0.672940 0.718890       0.32      Logistic Regression        data_normal_leaky (Opt. Thresh)
+ 0.666533 0.665461   0.361967 0.468889 0.725801       0.50           MLP Classifier                  data_normal_corrected
+ 0.720533 0.587101   0.408386 0.481701 0.725801       0.59           MLP Classifier    data_normal_corrected (Opt. Thresh)
+ 0.733693 0.756098   0.725057 0.740252 0.813918       0.50           MLP Classifier                      data_normal_leaky
+ 0.717942 0.847348   0.674267 0.750964 0.813918       0.40           MLP Classifier        data_normal_leaky (Opt. Thresh)
+ 0.774933 0.552743   0.492217 0.520727 0.752960       0.30            Random Forest       data_gan_corrected (Opt. Thresh)
+ 0.812400 0.357444   0.634904 0.457385 0.752960       0.50            Random Forest            data_gan_corrected (t=0.50)
+ 0.784133 0.499699   0.512361 0.505951 0.741224       0.50            Random Forest                  data_normal_corrected
+ 0.784133 0.499699   0.512361 0.505951 0.741224       0.50            Random Forest    data_normal_corrected (Opt. Thresh)
+ 0.929464 0.967252   0.899730 0.932270 0.978505       0.50            Random Forest                      data_normal_leaky
+ 0.949324 0.958383   0.941679 0.949958 0.978505       0.62            Random Forest        data_normal_leaky (Opt. Thresh)
+ 0.776267 0.544907   0.494800 0.518646 0.759095       0.24 Tabular Transformer (DL)       data_gan_corrected (Opt. Thresh)
+ 0.814400 0.314647   0.671815 0.428571 0.759095       0.50 Tabular Transformer (DL)            data_gan_corrected (t=0.50)
+ 0.769467 0.594937   0.482877 0.533081 0.765763       0.26                  XGBoost       data_gan_corrected (Opt. Thresh)
+ 0.811067 0.350814   0.631236 0.450988 0.765763       0.50                  XGBoost            data_gan_corrected (t=0.50)
+ 0.772533 0.469560   0.485358 0.477328 0.739012       0.50                  XGBoost                  data_normal_corrected
+ 0.750800 0.561784   0.449373 0.499330 0.739012       0.42                  XGBoost    data_normal_corrected (Opt. Thresh)
+ 0.811847 0.811359   0.813301 0.812329 0.889780       0.50                  XGBoost                      data_normal_leaky
+ 0.803373 0.906021   0.752621 0.822227 0.889780       0.39                  XGBoost        data_normal_leaky (Opt. Thresh)

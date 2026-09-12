@@ -1,9 +1,44 @@
-.DS_Store
-.venv/
+# Python & Bytecode
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.DS_Store
+
+# Virtual Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Jupyter Notebook Checkpoints
 .ipynb_checkpoints/
+
+# Model Weights & Checkpoints
 models/
-fixed_threshold_plots/
+*.joblib
+*.pkl
+*.pth
+*.pt
+*.bin
+*.onnx
+
+# Generated Charts & Plots
+charts/
+*.png
+!architecture_pipeline.png
+!results/architecture_pipeline.png
+summary/charts/
+summary/threshold_plots/
+summary/xai/
+results/charts/
+results/threshold_plots/
 leaky_threshold_plots/
+fixed_threshold_plots/
+
+# Data Artifacts & Synthetic Datasets
+data/
 results/ctgan_synthetic_*.parquet
+*.parquet
+*.csv
+!UCI_Credit_Card.csv

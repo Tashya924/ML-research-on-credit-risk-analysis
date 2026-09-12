@@ -1,0 +1,114 @@
+"""
+Publication-quality visualizations for research reporting, benchmark comparisons,
+and generative tabular synthesis evaluation.
+"""
+
+import os
+from typing import List, Tuple
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+
+def plot_scenario_comparisons(results_df: pd.DataFrame, output_dir: str = "summary/charts"):
+    """
+    Generates comparison bar plots across all algorithms and evaluation scenarios
+    for ROC-AUC, F1 Score, Precision, and Recall.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    sns.set_theme(style="whitegrid")
+
+    metrics = [
+        ("ROC_AUC", "chart_1_roc_auc.png", "ROC-AUC Comparison across Scenarios & Thresholds"),
+        ("F1", "chart_2_f1_score.png", "F1 Score Comparison: The Data Leakage Gap"),
+        ("Precision", "chart_3_precision.png", "Precision Comparison across Scenarios"),
+        ("Recall", "chart_4_recall.png", "Recall Comparison across Scenarios")
+    ]
+
+    for metric_col, fname, title in metrics:
+        if metric_col not in results_df.columns:
+            continue
+
+        plt.figure(figsize=(14, 11))
+        # Order by maximum score on that metric
+        order = (
+            results_df.groupby("Algorithm")[metric_col]
+            .max()
+            .sort_values(ascending=False)
+            .index
+        )
+        
+        ax = sns.barplot(
+            data=results_df,
+            x=metric_col,
+            y="Algorithm",
+            hue="Scenario",
+            order=order,
+            palette="Set2"
+        )
+        plt.xlim(0.0, 1.0)
+        plt.title(title, fontsize=14, fontweight='bold', pad=15)
+        plt.xlabel(metric_col.replace("_", " "), fontsize=12)
+        plt.ylabel("Algorithm", fontsize=12)
+        plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0.)
+        plt.tight_layout()
+
+        save_path = os.path.join(output_dir, fname)
+        plt.savefig(save_path, dpi=300)
+        plt.close()
+        print(f"[*] Saved chart to '{save_path}'")
+
+
+def plot_leakage_gap(audit_df: pd.DataFrame, output_filepath: str = "summary/charts/leakage_gap.png"):
+    """
+    Plots the explicit F1 score inflation gap between published, replicated leaky, and honest models.
+    """
+    os.makedirs(os.path.dirname(output_filepath), exist_ok=True)
+    plt.figure(figsize=(12, 7))
+    sns.set_theme(style="whitegrid")
+
+    plot_data = audit_df.sort_values(by="F1 Inflation Gap", ascending=True)
+
+    y_pos = range(len(plot_data))
+    plt.hlines(y=y_pos, xmin=plot_data["Corrected F1 (Honest)"], xmax=plot_data["Leaky F1 (Replicated)"], color='grey', alpha=0.5, linewidth=2)
+    plt.scatter(plot_data["Corrected F1 (Honest)"], y_pos, color='#2ca02c', s=100, label='Honest Corrected F1 (Pristine Test)', zorder=3)
+    plt.scatter(plot_data["Leaky F1 (Replicated)"], y_pos, color='#d62728', s=100, label='Replicated Leaky F1 (Overfit Leakage)', zorder=3)
+    plt.scatter(plot_data["Paper F1"], y_pos, color='#1f77b4', marker='x', s=100, label='Xu et al. (2024) Published F1', zorder=3)
+
+    for idx, (_, row) in enumerate(plot_data.iterrows()):
+        mid = (row["Corrected F1 (Honest)"] + row["Leaky F1 (Replicated)"]) / 2
+        plt.text(mid, idx + 0.2, f"+{row['F1 Inflation Gap']:.3f}", color='#d62728', fontweight='bold', fontsize=9, ha='center')
+
+    plt.yticks(y_pos, plot_data["Algorithm"], fontsize=11)
+    plt.xlabel("F1 Score", fontsize=12)
+    plt.title("The Data Leakage Inflation Gap (Replicated Leaky vs. Honest Corrected F1)", fontsize=13, fontweight='bold', pad=15)
+    plt.xlim(0.2, 1.0)
+    plt.legend(loc='lower right', frameon=True)
+    plt.tight_layout()
+
+    plt.savefig(output_filepath, dpi=300)
+    plt.close()
+    print(f"[*] Saved leakage gap visualization to '{output_filepath}'")
+
+
+def plot_generative_comparison(
+    gen_results_df: pd.DataFrame,
+    output_filepath: str = "summary/charts/generative_comparison.png"
+):
+    """
+    Bar plot comparing Generative models (CTGAN vs TabDDPM vs Baseline Corrected) on F1 and ROC-AUC.
+    """
+    os.makedirs(os.path.dirname(output_filepath), exist_ok=True)
+    plt.figure(figsize=(12, 6))
+    sns.set_theme(style="whitegrid")
+
+    if "Scenario" in gen_results_df.columns:
+        sns.barplot(data=gen_results_df, x="Algorithm", y="F1", hue="Scenario", palette="Spectral")
+        plt.title("Performance Comparison: Baseline vs. CTGAN vs. TabDDPM Augmentation", fontsize=13, fontweight='bold')
+        plt.ylabel("F1 Score (Pristine Test Set)", fontsize=11)
+        plt.xticks(rotation=25, ha='right')
+        plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left')
+        plt.tight_layout()
+        plt.savefig(output_filepath, dpi=300)
+        plt.close()
+        print(f"[*] Saved generative comparison chart to '{output_filepath}'")
