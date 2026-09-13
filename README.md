@@ -43,11 +43,8 @@ python data_generator_diffusion.py --mode corrected --defaults 1000 --non-defaul
 
 # Or run interactive prompt mode
 python data_generator_diffusion.py --interactive
-
-# --- C. Unified Multi-Model Generator (data_generator.py) ---
-# Interactive menu for choosing model, leakage mode, and class counts
-python data_generator.py --interactive
 ```
+
 
 ---
 
@@ -184,10 +181,9 @@ Evaluated on the unpolluted pristine test partition (7,500 samples, 22.12% natur
 
 ```
 .
-├── train.py                                # Main training & evaluation pipeline (naive entrypoint)
+├── train.py                                # Main training & evaluation pipeline (produces 5 standardized CSVs)
 ├── data_generator_gan.py                   # Dedicated GAN (CTGAN) dataset generator
 ├── data_generator_diffusion.py             # Dedicated Diffusion (TabDDPM) dataset generator
-├── data_generator.py                       # Unified synthetic dataset generator
 ├── credit_risk_research_pipeline.ipynb     # Consolidated end-to-end research notebook
 ├── UCI_Credit_Card.csv                     # Primary dataset (30,000 observations)
 ├── requirements.txt                        # Virtual environment dependencies
@@ -195,18 +191,24 @@ Evaluated on the unpolluted pristine test partition (7,500 samples, 22.12% natur
 ├── src/                                    # Clean modular source package
 │   ├── __init__.py                         # Package initialization
 │   ├── data.py                             # Data loading & Leaky vs. Corrected pipelines
-│   ├── generator_gan.py                    # Dedicated CTGAN generator module
+│   ├── generator_gan.py                    # Dedicated CTGAN generator module with model caching
 │   ├── generator_diffusion.py              # Dedicated TabDDPM diffusion generator module
-│   ├── generators.py                       # Facade re-exporting GAN & Diffusion generators
 │   ├── models.py                           # 16 ML classifiers, Deep MLP & PyTorch TabularTransformer
-│   ├── evaluation.py                       # Evaluation metrics, threshold tuning & paper audit
+│   ├── evaluation.py                       # Evaluation metrics, 4-scenario tables & size scaling
 │   ├── explainability.py                   # SHAP, LIME, Permutation Importance & risk scoring
-│   └── visualizations.py                   # Comparison bar plots & leakage gap visualizations
-├── data/                                   # Generated synthetic datasets (gitignored)
+│   └── visualizations.py                   # Comparison plots & synthetic fidelity validation
+├── data/                                   # Generated synthetic datasets & model caches (gitignored)
+│   ├── ctgan_synthetic_120000.parquet      # Pre-generated CTGAN distribution
 │   └── synthetic_tabddpm.csv               # TabDDPM synthetic dataset
 └── summary/                                # Research outputs, reports, and publication figures
-    ├── charts/                             # Scenario comparison plots & leakage gap visualizations
-    ├── metrics/                            # Results summary tables (CSV & TXT) and paper audit
+    ├── charts/                             # Scenario comparison plots & diagnostic fidelity charts
+    ├── metrics/                            # Standardized 5 research CSV metrics (tracked in git)
+    │   ├── leaky_replication.csv           # Replicates Xu et al. (2024) Table 2 (10 algorithms, 5-fold CV)
+    │   ├── leaky_vs_corrected.csv          # 4 results per model: Leaky vs Corrected x Normal vs Opt Threshold
+    │   ├── GAN_vs_Diffusion.csv            # 4 results per model: GAN vs Diffusion x Normal vs Opt Threshold
+    │   ├── Gan_size.csv                    # CTGAN generative size scaling (100k, 200k, 300k, 400k, 500k, 1M)
+    │   ├── Diffusion_size.csv              # TabDDPM generative size scaling (100k, 200k, 300k, 400k, 500k, 1M)
+    │   └── synthetic_data_statistical_fidelity.csv # KS-tests, Wasserstein distance, mean/std fidelity
     ├── threshold_plots/                    # Stratified 10-fold CV threshold calibration curves
     └── xai/                                # SHAP beeswarm, dependence, waterfall & LIME plots
 ```
@@ -232,11 +234,14 @@ pip install -r requirements.txt
 
 ### 2. Run Training Pipeline (`train.py`)
 ```bash
-# Run full benchmark across all models and scenarios
-python train.py
+# Run full benchmark across all models and scaling sizes up to 1M
+python train.py --gan-sizes 100000 200000 300000 400000 500000 1000000 --diffusion-sizes 100000 200000 300000 400000 500000 1000000
 
-# Run quick 1-minute smoke-test
+# Run fast smoke-test mode (~2 mins)
 python train.py --quick
+
+# Run benchmarks 1, 2, 3 only (skip size scaling)
+python train.py --skip-sizes
 ```
 
 ### 3. Generate Custom Synthetic Datasets Separately
@@ -262,16 +267,11 @@ python data_generator_diffusion.py --mode corrected --defaults 1000 --non-defaul
 python data_generator_diffusion.py --interactive
 ```
 
-#### C. Unified Multi-Model Generator (`data_generator.py`)
-```bash
-# Interactive menu for choosing model, leakage mode, and class counts
-python data_generator.py --interactive
-```
-
 ### 4. Interactive Jupyter Notebook
 ```bash
 jupyter notebook credit_risk_research_pipeline.ipynb
 ```
+
 
 ---
 

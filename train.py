@@ -39,7 +39,8 @@ from src.evaluation import (
     replicate_paper_table2, format_leaky_vs_corrected, format_gan_vs_diffusion,
     benchmark_dataset_sizes
 )
-from src.generators import generate_ctgan_synthetic_data, generate_tabddpm_synthetic_data
+from src.generator_gan import generate_ctgan_synthetic_data
+from src.generator_diffusion import generate_tabddpm_synthetic_data
 from src.visualizations import plot_scenario_comparisons, plot_paper_replication_match
 from src.explainability import (
     generate_shap_analysis, generate_lime_analysis,
@@ -167,7 +168,6 @@ def main():
     rep_df = replicate_paper_table2(X, y, random_state=42, n_splits=5)
     rep_path = os.path.join(metrics_dir, "leaky_replication.csv")
     rep_df.to_csv(rep_path, index=False)
-    rep_df.to_csv(os.path.join(metrics_dir, "leaky_repliation.csv"), index=False)
     print(f"\n[✓] Saved Experiment 1 to '{rep_path}':\n")
     print(rep_df[["Algorithm", "Paper Recall", "Replicated Recall", "Diff Recall", "Paper F1", "Replicated F1", "Paper Accuracy", "Replicated Accuracy"]].to_string(index=False))
     plot_paper_replication_match(rep_df, os.path.join(charts_dir, "paper_replication_match.png"))
@@ -412,7 +412,6 @@ def main():
         )
         diff_size_path = os.path.join(metrics_dir, "Diffusion_size.csv")
         diff_size_df.to_csv(diff_size_path, index=False)
-        diff_size_df.to_csv(os.path.join(metrics_dir, "Diffusion size.csv"), index=False)
         print(f"\n[✓] Saved Experiment 5 (Diffusion_size.csv) to '{diff_size_path}':")
         print(diff_size_df.head(6).to_string(index=False))
         plot_size_scaling(diff_size_df, "TabDDPM Diffusion Dataset Size Scaling Effect on F1", os.path.join(charts_dir, "chart_diffusion_size_scaling.png"))
