@@ -58,9 +58,10 @@ def generate_ctgan_synthetic_data(
     elif num_defaults is not None and num_non_defaults is not None:
         total_samples = num_defaults + num_non_defaults
 
-    # Check if cache is available and covers our needs
+    model_cache_path = os.path.join(os.path.dirname(cache_path) if cache_path else "data", "ctgan_model.pkl")
+
+    # 1. Check if raw parquet cache satisfies requested total_samples
     if cache_path and os.path.exists(cache_path):
-        print(f"[*] Loading cached CTGAN dataset from '{cache_path}'...")
         if cache_path.endswith(".parquet"):
             cached_df = pd.read_parquet(cache_path)
         else:
@@ -79,17 +80,34 @@ def generate_ctgan_synthetic_data(
             print(f"[*] Sampling {total_samples} records from cached CTGAN dataset...")
             return cached_df.sample(n=total_samples, random_state=random_state).reset_index(drop=True)
 
-    # Otherwise train CTGAN from scratch
-    print(f"[*] Training CTGAN on input partition ({len(X_train_raw)} rows, {epochs} epochs)...")
-    from ctgan import CTGAN
-    train_df = X_train_raw.copy()
-    train_df[TARGET_COL] = y_train_raw.values
-    discrete_cols = [c for c in categorical_features if c in train_df.columns] + [TARGET_COL]
+    # 2. Check if fitted CTGAN model is cached
+    import pickle
+    ctgan = None
+    if os.path.exists(model_cache_path):
+        try:
+            print(f"[*] Loading fitted CTGAN model from '{model_cache_path}'...")
+            with open(model_cache_path, "rb") as f:
+                ctgan = pickle.load(f)
+        except Exception as e:
+            print(f"[!] Could not load CTGAN model cache ({e}). Fitting new model...")
 
-    ctgan = CTGAN(epochs=epochs, batch_size=batch_size, verbose=False)
-    ctgan.fit(train_df, discrete_cols)
+    if ctgan is None:
+        print(f"[*] Training CTGAN on input partition ({len(X_train_raw)} rows, {epochs} epochs)...")
+        from ctgan import CTGAN
+        train_df = X_train_raw.copy()
+        train_df[TARGET_COL] = y_train_raw.values
+        discrete_cols = [c for c in categorical_features if c in train_df.columns] + [TARGET_COL]
 
-    bounds = {col: (train_df[col].min(), train_df[col].max()) for col in X_train_raw.columns}
+        ctgan = CTGAN(epochs=epochs, batch_size=batch_size, verbose=False)
+        ctgan.fit(train_df, discrete_cols)
+        try:
+            with open(model_cache_path, "wb") as f:
+                pickle.dump(ctgan, f)
+            print(f"[✓] Saved fitted CTGAN model to '{model_cache_path}'.")
+        except Exception as e:
+            print(f"[!] Note: Could not cache CTGAN model: {e}")
+
+    bounds = {col: (X_train_raw[col].min(), X_train_raw[col].max()) for col in X_train_raw.columns}
 
     if num_defaults is not None and num_non_defaults is not None:
         print(f"[*] Sampling target distribution: {num_defaults} Defaults, {num_non_defaults} Non-defaults...")
@@ -97,23 +115,35 @@ def generate_ctgan_synthetic_data(
         non_defaults_collected = []
 
         while len(defaults_collected) < num_defaults or len(non_defaults_collected) < num_non_defaults:
-            sample_size = max(5000, (num_defaults - len(defaults_collected) + num_non_defaults - len(non_defaults_collected)) * 2)
+            needed_def = num_defaults - len(defaults_collected)
+            needed_non = num_non_defaults - len(non_defaults_collected)
+            sample_size = min(max(10000, (needed_def + needed_non) * 2), 200000)
             batch = ctgan.sample(sample_size)
             batch = clip_to_bounds(batch, bounds)
 
             b1 = batch[batch[TARGET_COL] == 1]
             b0 = batch[batch[TARGET_COL] == 0]
 
-            if len(defaults_collected) < num_defaults and len(b1) > 0:
-                defaults_collected.append(b1.iloc[:num_defaults - len(defaults_collected)])
-            if len(non_defaults_collected) < num_non_defaults and len(b0) > 0:
-                non_defaults_collected.append(b0.iloc[:num_non_defaults - len(non_defaults_collected)])
+            if needed_def > 0 and len(b1) > 0:
+                defaults_collected.append(b1.iloc[:needed_def])
+            if needed_non > 0 and len(b0) > 0:
+                non_defaults_collected.append(b0.iloc[:needed_non])
 
         synthetic_df = pd.concat(defaults_collected + non_defaults_collected, axis=0)
     else:
-        print(f"[*] Sampling {total_samples} synthetic rows from CTGAN...")
-        synthetic_df = ctgan.sample(total_samples)
-        synthetic_df = clip_to_bounds(synthetic_df, bounds)
+        print(f"[*] Sampling {total_samples:,} synthetic rows from CTGAN model...")
+        # For large counts like 500k or 1M, sample in chunks to manage memory
+        chunk_size = 100000
+        chunks = []
+        sampled_so_far = 0
+        while sampled_so_far < total_samples:
+            n_curr = min(chunk_size, total_samples - sampled_so_far)
+            c = ctgan.sample(n_curr)
+            c = clip_to_bounds(c, bounds)
+            chunks.append(c)
+            sampled_so_far += n_curr
+        synthetic_df = pd.concat(chunks, axis=0)
 
     synthetic_df = synthetic_df.sample(frac=1.0, random_state=random_state).reset_index(drop=True)
     return synthetic_df
+

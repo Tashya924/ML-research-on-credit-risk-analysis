@@ -17,10 +17,11 @@ TARGET_COL = "default.payment.next.month"
 def generate_tabddpm_synthetic_data(
     X_train_raw: pd.DataFrame,
     y_train_raw: pd.Series,
-    num_defaults: Optional[int] = 10000,
-    num_non_defaults: Optional[int] = 10000,
+    num_defaults: Optional[int] = None,
+    num_non_defaults: Optional[int] = None,
     default_ratio: Optional[float] = None,
     total_samples: int = 20000,
+
     cache_dir: str = "data",
     n_iter: int = 2000,
     batch_size: int = 256,
@@ -46,20 +47,42 @@ def generate_tabddpm_synthetic_data(
     if default_ratio is not None:
         num_defaults = int(total_samples * default_ratio)
         num_non_defaults = total_samples - num_defaults
-    elif num_defaults is None or num_non_defaults is None:
-        num_defaults = num_defaults if num_defaults is not None else 10000
-        num_non_defaults = num_non_defaults if num_non_defaults is not None else 10000
+    elif num_defaults is not None and num_non_defaults is not None:
+        total_samples = num_defaults + num_non_defaults
+    elif total_samples is not None:
+        num_defaults = int(total_samples * 0.5)
+        num_non_defaults = total_samples - num_defaults
+    else:
+        num_defaults = 10000
+        num_non_defaults = 10000
+        total_samples = 20000
 
     os.makedirs(cache_dir, exist_ok=True)
     temp_train_path = os.path.join(cache_dir, "_train_for_ddpm.csv")
     output_csv = os.path.join(cache_dir, f"synthetic_tabddpm_d{num_defaults}_nd{num_non_defaults}.csv")
+    pool_path = os.path.join(cache_dir, "synthetic_tabddpm_pool.parquet")
 
     if os.path.exists(output_csv):
         print(f"[*] Found existing TabDDPM synthetic data at '{output_csv}'. Loading...")
         return pd.read_csv(output_csv)
 
+    # Check if a TabDDPM distribution pool exists that can satisfy the request
+    if os.path.exists(pool_path):
+        pool_df = pd.read_parquet(pool_path)
+        p1 = pool_df[pool_df[TARGET_COL] == 1]
+        p0 = pool_df[pool_df[TARGET_COL] == 0]
+        if len(p1) > 0 and len(p0) > 0:
+            print(f"[*] Sampling {num_defaults} defaults & {num_non_defaults} non-defaults from TabDDPM pool...")
+            replace_1 = num_defaults > len(p1)
+            replace_0 = num_non_defaults > len(p0)
+            s1 = p1.sample(n=num_defaults, replace=replace_1, random_state=random_state)
+            s0 = p0.sample(n=num_non_defaults, replace=replace_0, random_state=random_state)
+            res = pd.concat([s1, s0], axis=0).sample(frac=1.0, random_state=random_state).reset_index(drop=True)
+            return res
+
     train_data = pd.concat([X_train_raw, y_train_raw], axis=1)
     train_data.to_csv(temp_train_path, index=False)
+
 
     generator_script = f"""
 import os

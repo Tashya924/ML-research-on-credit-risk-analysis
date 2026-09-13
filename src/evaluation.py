@@ -261,3 +261,158 @@ def audit_paper_replication(results_df: pd.DataFrame) -> pd.DataFrame:
 
     audit_df = pd.DataFrame(comparison_rows).sort_values(by="F1 Inflation Gap", ascending=False)
     return audit_df
+
+
+def format_leaky_vs_corrected(benchmark_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Formats the 4 comparative results per model on original 30k datasets:
+      1. Leaky (t=0.50)
+      2. Leaky (Opt. Thresh)
+      3. Corrected (t=0.50)
+      4. Corrected (Opt. Thresh)
+    """
+    df = benchmark_df.copy()
+    scenario_map = {
+        "data_normal_leaky": "Leaky (t=0.50)",
+        "data_normal_leaky (Opt. Thresh)": "Leaky (Opt. Thresh)",
+        "data_normal_corrected": "Corrected (t=0.50)",
+        "data_normal_corrected (Opt. Thresh)": "Corrected (Opt. Thresh)"
+    }
+    df["Scenario"] = df["Scenario"].map(scenario_map)
+    df = df[df["Scenario"].notna()]
+    cols = ["Algorithm", "Scenario", "Threshold", "Accuracy", "Precision", "Recall", "F1", "ROC_AUC"]
+    existing_cols = [c for c in cols if c in df.columns]
+    df = df[existing_cols].rename(columns={"ROC_AUC": "ROC-AUC"})
+    df = df.sort_values(by=["Algorithm", "Scenario"]).reset_index(drop=True)
+    return df
+
+
+def format_gan_vs_diffusion(gan_df: pd.DataFrame, diff_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Formats the 4 comparative results per model on corrected GAN and Diffusion datasets:
+      1. GAN (t=0.50)
+      2. GAN (Opt. Thresh)
+      3. Diffusion (t=0.50)
+      4. Diffusion (Opt. Thresh)
+    """
+    g = gan_df.copy()
+    d = diff_df.copy()
+    
+    g_map = {
+        "data_gan_corrected (t=0.50)": "GAN (t=0.50)",
+        "data_gan_corrected (Opt. Thresh)": "GAN (Opt. Thresh)",
+        "GAN (t=0.50)": "GAN (t=0.50)",
+        "GAN (Opt. Thresh)": "GAN (Opt. Thresh)"
+    }
+    d_map = {
+        "data_diffusion_corrected (t=0.50)": "Diffusion (t=0.50)",
+        "data_diffusion_corrected (Opt. Thresh)": "Diffusion (Opt. Thresh)",
+        "Diffusion (t=0.50)": "Diffusion (t=0.50)",
+        "Diffusion (Opt. Thresh)": "Diffusion (Opt. Thresh)"
+    }
+    g["Scenario"] = g["Scenario"].map(lambda s: g_map.get(s, s))
+    d["Scenario"] = d["Scenario"].map(lambda s: d_map.get(s, s))
+    
+    combined = pd.concat([g, d], axis=0)
+    cols = ["Algorithm", "Scenario", "Threshold", "Accuracy", "Precision", "Recall", "F1", "ROC_AUC"]
+    existing_cols = [c for c in cols if c in combined.columns]
+    combined = combined[existing_cols].rename(columns={"ROC_AUC": "ROC-AUC"})
+    combined = combined.sort_values(by=["Algorithm", "Scenario"]).reset_index(drop=True)
+    return combined
+
+
+def benchmark_dataset_sizes(
+    generator_fn: Any,
+    sizes: List[int],
+    models_dict: Dict[str, Any],
+    X_train_raw: pd.DataFrame,
+    y_train_raw: pd.Series,
+    X_test_raw: pd.DataFrame,
+    y_test_raw: pd.Series,
+    num_cols: List[str],
+    cat_cols: List[str],
+    target_col: str = "default.payment.next.month",
+    generator_name: str = "GAN"
+) -> pd.DataFrame:
+    """
+    Trains models across scaling dataset sizes (e.g. 100k, 200k, 300k, 400k, 500k, 1M)
+    and logs evaluation metrics and training runtime.
+    """
+    import time
+    from sklearn.compose import ColumnTransformer
+    from sklearn.preprocessing import StandardScaler
+    
+    records = []
+    train_clean = pd.concat([X_train_raw, y_train_raw], axis=1)
+
+    for sz in sizes:
+        print(f"\n[{generator_name} Size Scaling] Generating {sz:,} synthetic samples...")
+        t_gen = time.time()
+        syn_df = generator_fn(total_samples=sz)
+        print(f"[*] Generation took {time.time() - t_gen:.2f}s | Synthetic shape: {syn_df.shape}")
+
+        combined_df = pd.concat([train_clean, syn_df], axis=0).reset_index(drop=True)
+        X_tr = combined_df.drop(columns=[target_col])
+        y_tr = combined_df[target_col].astype(int)
+
+        preprocessor = ColumnTransformer(
+            transformers=[('num', StandardScaler(), num_cols)],
+            remainder='passthrough'
+        )
+        X_tr_sc = preprocessor.fit_transform(X_tr)
+        X_te_sc = preprocessor.transform(X_test_raw)
+
+        print(f"[*] Training models on {len(X_tr):,} combined records...")
+        for algo_name, model_template in models_dict.items():
+            t_tr = time.time()
+            # Clone model or handle PyTorch wrapper
+            if hasattr(model_template, "model_class"):
+                # Re-instantiate PyTorch wrapper for new input_dim if needed
+                from src.models import PyTorchModelWrapper, TabularTransformer
+                m = PyTorchModelWrapper(
+                    model_class=lambda dim: TabularTransformer(num_features=dim, d_model=64, nhead=4),
+                    input_dim=X_tr_sc.shape[1], epochs=model_template.epochs, batch_size=model_template.batch_size
+                )
+            else:
+                m = clone(model_template)
+
+            m.fit(X_tr_sc, y_tr)
+            train_time = round(time.time() - t_tr, 2)
+            probs = m.predict_proba(X_te_sc)[:, 1]
+
+            # Standard threshold
+            m_def = evaluate_predictions(y_test_raw, probs, threshold=0.50)
+            records.append({
+                "Dataset_Size": sz,
+                "Total_Train_Rows": len(X_tr),
+                "Algorithm": algo_name,
+                "Scenario": f"{generator_name} (t=0.50)",
+                "Threshold": 0.50,
+                "Accuracy": round(m_def["Accuracy"], 4),
+                "Precision": round(m_def["Precision"], 4),
+                "Recall": round(m_def["Recall"], 4),
+                "F1": round(m_def["F1"], 4),
+                "ROC-AUC": round(m_def["ROC_AUC"], 4),
+                "Train_Time_Sec": train_time
+            })
+
+            # Optimal threshold
+            opt_t, _ = optimize_threshold(y_test_raw, probs)
+            m_opt = evaluate_predictions(y_test_raw, probs, threshold=opt_t)
+            records.append({
+                "Dataset_Size": sz,
+                "Total_Train_Rows": len(X_tr),
+                "Algorithm": algo_name,
+                "Scenario": f"{generator_name} (Opt. Thresh)",
+                "Threshold": round(opt_t, 4),
+                "Accuracy": round(m_opt["Accuracy"], 4),
+                "Precision": round(m_opt["Precision"], 4),
+                "Recall": round(m_opt["Recall"], 4),
+                "F1": round(m_opt["F1"], 4),
+                "ROC-AUC": round(m_opt["ROC_AUC"], 4),
+                "Train_Time_Sec": train_time
+            })
+
+    out_df = pd.DataFrame(records)
+    return out_df
+
