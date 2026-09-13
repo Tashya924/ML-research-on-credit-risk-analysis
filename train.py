@@ -37,7 +37,7 @@ from src.models import get_classifiers, get_deep_mlp, TabularTransformer, PyTorc
 from src.evaluation import (
     evaluate_predictions, optimize_threshold, generate_cv_threshold_plot,
     replicate_paper_table2, format_leaky_vs_corrected, format_gan_vs_diffusion,
-    benchmark_dataset_sizes
+    format_size_scaling_table, benchmark_dataset_sizes
 )
 from src.generator_gan import generate_ctgan_synthetic_data
 from src.generator_diffusion import generate_tabddpm_synthetic_data
@@ -179,8 +179,8 @@ def main():
     leaky_vs_corr_df = format_leaky_vs_corrected(raw_bench_df)
     leaky_vs_corr_path = os.path.join(metrics_dir, "leaky_vs_corrected.csv")
     leaky_vs_corr_df.to_csv(leaky_vs_corr_path, index=False)
-    print(f"\n[✓] Saved Experiment 2 (4 results per model) to '{leaky_vs_corr_path}':")
-    print(leaky_vs_corr_df.head(8).to_string(index=False))
+    print(f"\n[✓] Saved Experiment 2 (2 rows per model) to '{leaky_vs_corr_path}':")
+    print(leaky_vs_corr_df.head(6).to_string(index=False))
 
     plot_scenario_comparisons(raw_bench_df, output_dir=charts_dir)
 
@@ -320,20 +320,24 @@ def main():
 
     gan_df = pd.DataFrame(gan_records)
     diff_df = pd.DataFrame(diff_records)
-    gan_vs_diff_df = format_gan_vs_diffusion(gan_df, diff_df)
-    gan_vs_diff_path = os.path.join(metrics_dir, "GAN_vs_Diffusion.csv")
-    gan_vs_diff_df.to_csv(gan_vs_diff_path, index=False)
-    print(f"\n[✓] Saved Experiment 3 (4 results per model) to '{gan_vs_diff_path}':")
-    print(gan_vs_diff_df.head(8).to_string(index=False))
 
+    # Plot GAN vs Diffusion comparison using combined unpivoted df
+    combined_gan_diff = pd.concat([gan_df, diff_df], axis=0)
     plt.figure(figsize=(12, 6))
     sns.set_theme(style="whitegrid")
-    sns.barplot(data=gan_vs_diff_df, x="Algorithm", y="F1", hue="Scenario", palette="Spectral")
+    sns.barplot(data=combined_gan_diff, x="Algorithm", y="F1", hue="Scenario", palette="Spectral")
     plt.title("GAN vs Diffusion Performance on Corrected Distribution", fontsize=13, fontweight="bold")
     plt.xticks(rotation=25, ha='right')
     plt.tight_layout()
     plt.savefig(os.path.join(charts_dir, "chart_gan_vs_diffusion.png"), dpi=300)
     plt.close()
+
+    # Format into compact 2-row table and save
+    gan_vs_diff_df = format_gan_vs_diffusion(gan_df, diff_df)
+    gan_vs_diff_path = os.path.join(metrics_dir, "GAN_vs_Diffusion.csv")
+    gan_vs_diff_df.to_csv(gan_vs_diff_path, index=False)
+    print(f"\n[✓] Saved Experiment 3 (2 rows per model) to '{gan_vs_diff_path}':")
+    print(gan_vs_diff_df.head(6).to_string(index=False))
 
     # -------------------------------------------------------------------------
     # EXPERIMENTS 4 & 5: DATASET SIZE SCALING (100k, 200k, 300k, 400k, 500k, 1M)
@@ -368,7 +372,7 @@ def main():
             total_samples=total_samples,
             cache_path="data/ctgan_synthetic_120000.parquet"
         )
-        gan_size_df = benchmark_dataset_sizes(
+        gan_size_raw_df = benchmark_dataset_sizes(
             generator_fn=gan_size_fn,
             sizes=gan_sizes,
             models_dict=size_models,
@@ -380,11 +384,12 @@ def main():
             cat_cols=data_normal_corrected["cat_cols"],
             generator_name="GAN"
         )
+        plot_size_scaling(gan_size_raw_df, "CTGAN Dataset Size Scaling Effect on F1", os.path.join(charts_dir, "chart_gan_size_scaling.png"))
+        gan_size_df = format_size_scaling_table(gan_size_raw_df)
         gan_size_path = os.path.join(metrics_dir, "Gan_size.csv")
         gan_size_df.to_csv(gan_size_path, index=False)
-        print(f"\n[✓] Saved Experiment 4 (Gan_size.csv) to '{gan_size_path}':")
+        print(f"\n[✓] Saved Experiment 4 (Gan_size.csv - 2 rows per model) to '{gan_size_path}':")
         print(gan_size_df.head(6).to_string(index=False))
-        plot_size_scaling(gan_size_df, "CTGAN Dataset Size Scaling Effect on F1", os.path.join(charts_dir, "chart_gan_size_scaling.png"))
 
         # 5. Diffusion Size Scaling
         diffusion_sizes = args.diffusion_sizes
@@ -398,7 +403,7 @@ def main():
             total_samples=total_samples,
             cache_dir="data"
         )
-        diff_size_df = benchmark_dataset_sizes(
+        diff_size_raw_df = benchmark_dataset_sizes(
             generator_fn=diff_size_fn,
             sizes=diffusion_sizes,
             models_dict=size_models,
@@ -410,11 +415,12 @@ def main():
             cat_cols=data_normal_corrected["cat_cols"],
             generator_name="Diffusion"
         )
+        plot_size_scaling(diff_size_raw_df, "TabDDPM Diffusion Dataset Size Scaling Effect on F1", os.path.join(charts_dir, "chart_diffusion_size_scaling.png"))
+        diff_size_df = format_size_scaling_table(diff_size_raw_df)
         diff_size_path = os.path.join(metrics_dir, "Diffusion_size.csv")
         diff_size_df.to_csv(diff_size_path, index=False)
-        print(f"\n[✓] Saved Experiment 5 (Diffusion_size.csv) to '{diff_size_path}':")
+        print(f"\n[✓] Saved Experiment 5 (Diffusion_size.csv - 2 rows per model) to '{diff_size_path}':")
         print(diff_size_df.head(6).to_string(index=False))
-        plot_size_scaling(diff_size_df, "TabDDPM Diffusion Dataset Size Scaling Effect on F1", os.path.join(charts_dir, "chart_diffusion_size_scaling.png"))
 
 
     # 10. MODEL EXPLAINABILITY (XAI)
