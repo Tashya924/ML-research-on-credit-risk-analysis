@@ -158,3 +158,30 @@ print('TabDDPM synthetic data generated successfully.')
         raise RuntimeError(f"TabDDPM generation failed: {res.stderr}")
 
     return pd.read_csv(output_csv)
+
+
+def build_tabddpm_pool(
+    X_train_raw: pd.DataFrame,
+    y_train_raw: pd.Series,
+    rows_per_class: int,
+    cache_dir: str = "data",
+    **kwargs
+) -> pd.DataFrame:
+    """
+    Returns a pool of fresh TabDDPM rows (rows_per_class per class), generated once from the
+    training partition and cached at <cache_dir>/synthetic_tabddpm_pool.parquet. Size and ratio
+    experiments sample from it without replacement.
+    """
+    pool_path = os.path.join(cache_dir, "synthetic_tabddpm_pool.parquet")
+    if os.path.exists(pool_path):
+        pool_df = pd.read_parquet(pool_path)
+        counts = pool_df[TARGET_COL].value_counts()
+        if counts.get(1, 0) >= rows_per_class and counts.get(0, 0) >= rows_per_class:
+            return pool_df
+    pool_df = generate_tabddpm_synthetic_data(
+        X_train_raw, y_train_raw, num_defaults=rows_per_class, num_non_defaults=rows_per_class,
+        cache_dir=cache_dir, **kwargs
+    )
+    pool_df.to_parquet(pool_path, index=False)
+    return pool_df
+
