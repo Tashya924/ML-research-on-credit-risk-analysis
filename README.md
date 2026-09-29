@@ -1,335 +1,310 @@
-# Machine Learning Research on Credit Risk Analysis: Replication, Leakage Audit & Generative Tabular Deep Learning
+# Credit Risk ML Research: Replication, Leakage Audit and Generative Oversampling
 
-[![Replication Study](https://img.shields.io/badge/Replication-Xu_et_al._(2024)-blue.svg)](https://link.springer.com/article/10.1007/s10479-024-06134-x)
-[![Python 3.10--3.12](https://img.shields.io/badge/Python-3.10%20|%203.11%20|%203.12-green.svg)](https://www.python.org/)
+[![Paper](https://img.shields.io/badge/Replicates-Annals_of_Operations_Research_354_(2025)-blue.svg)](https://doi.org/10.1007/s10479-024-06134-x)
+[![Python](https://img.shields.io/badge/Python-3.10%20|%203.11%20|%203.12%20|%203.13-green.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.1+-ee4c2c.svg)](https://pytorch.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An empirical research replication, methodological audit, and generative deep tabular modeling study of:
-> **Xu, Q. A., Benson, V., & Chang, V. (2024).** *Prediction of bank credit worthiness through credit risk analysis: an explainable machine learning study.* **Annals of Operations Research**, 354(1), 247–271. [DOI: 10.1007/s10479-024-06134-x](https://link.springer.com/article/10.1007/s10479-024-06134-x).
+A replication and methodological audit of:
+
+> Chang, V., Xu, Q. A., Akinloye, S. H., Benson, V., & Hall, K. (2025). *Prediction of bank credit worthiness through credit risk analysis: an explainable machine learning study.* **Annals of Operations Research**, 354, 247–271 (published online 8 July 2024). [DOI: 10.1007/s10479-024-06134-x](https://doi.org/10.1007/s10479-024-06134-x)
+
+The project (1) reproduces the paper's Table 2, (2) measures what the paper's *described* preprocessing (oversampling before the train/test split) does to the scores, (3) builds an honest zero-leakage baseline, and (4) tests whether synthetic data from a GAN (CTGAN), a diffusion model (TabDDPM) or Adaptive Generative Synthetic Sampling (AGSS) improves default prediction.
 
 ---
 
-## Quickstart: How to Run (Simple 2-Step Guide)
+## Key findings
 
-### 1. Run Complete Model Training & Evaluation
-To train all models, evaluate leaky vs. corrected performance, and generate all summary reports and charts:
+1. **Table 2 is reproduced without any oversampling.** Stratified 5-fold CV on the original data with *weighted* precision / recall / F1 matches the published accuracy and recall within 0.005 for 9 of 10 models (LightGBM: 0.03) and F1 within 0.016 (`leaky_replication.csv`). Weighted scores are dominated by the 78% non-default class (weighted recall equals accuracy), so they overstate how well defaulters are detected.
+2. **The procedure the paper describes would leak.** Random oversampling before the split puts copies of the same defaulters in both train and test. In that setup Random Forest reaches F1 0.93 and Decision Tree 0.88 — far above both the paper (0.80) and the honest pipeline (0.51 / 0.41) (`leaky_vs_corrected.csv`).
+3. **Honest ceiling:** with the split done first and SMOTENC applied to the training part only, the best models reach defaulter-class **F1 ≈ 0.51–0.52 and ROC-AUC ≈ 0.75–0.76** at the default threshold.
+4. **Synthetic data quality:** TabDDPM reproduces the real feature distributions closely (median per-feature KS statistic 0.040, max 0.10); CTGAN is weaker (median 0.149, max 0.57 on `PAY_AMT1`) (`synthetic_data_statistical_fidelity.csv`).
+5. **More synthetic data does not help.** Adding 100k–1M TabDDPM rows leaves F1 and ROC-AUC flat; adding CTGAN rows makes them worse as size grows. With a tuned threshold, the best augmented model (F1 0.546) is no better than Gradient Boosting trained on the real data alone (F1 0.545, ROC-AUC 0.779); Random Forest gains about 0.01 F1 from diffusion rows.
+6. **Default ratio matters only at the default 0.5 threshold.** A 50% defaulter mix gives the best F1 at t = 0.50; once the threshold is tuned the ratio barely matters (Gradient Boosting F1 0.525–0.546), and 90% defaulters is slightly worse.
+7. **AGSS is slightly worse than plain diffusion sampling** in most comparisons (typically F1 −0.005 to −0.05, ROC-AUC −0.003 to −0.03). On this dataset most defaulters already have mostly non-default neighbours, so the adaptive weights are nearly flat and the extra samples land where the classes overlap.
+
+---
+
+## Quickstart
+
 ```bash
-# Run full training and evaluation pipeline
-python train.py
+git clone https://github.com/Tashya924/ML-research-on-credit-risk-analysis.git
+cd ML-research-on-credit-risk-analysis
+python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 
-# Or run a fast smoke-test (takes ~1 minute)
-python train.py --quick
+python train.py --quick          # smoke test of all 8 experiments (~5 min once caches exist)
+python train.py --skip-sizes     # experiments 1-3 only
+python train.py                  # full run (size scaling up to 1M rows)
 ```
-> All outputs (metrics tables, threshold plots, comparison charts, and XAI plots) are automatically generated in the `summary/` directory.
 
-### 2. Generate Synthetic Tabular Datasets (Separate GAN & Diffusion Files)
-To generate synthetic credit card data with selectable ratios of Default vs. Non-Default, dedicated standalone files are provided for each approach:
+**TabDDPM requirement.** The diffusion model runs through [`synthcity`](https://github.com/vanderschaarlab/synthcity) in a separate Python 3.10 environment created automatically with [`uv`](https://docs.astral.sh/uv/). Install `uv` first. On first use, training takes about 8 minutes per class (2,000 iterations, CPU); generating the 1M-row pool for the size experiments takes about 1.5 hours. Everything is cached in `data/` (git-ignored).
+
+Useful options:
+
+| Option | Meaning |
+|---|---|
+| `--quick` | Small sizes and fewer models |
+| `--skip-cv`, `--skip-xai`, `--skip-sizes` | Skip threshold curves, SHAP/LIME, or experiments 4–8 |
+| `--gan-sizes N ...` | GAN sizes for experiment 4 |
+| `--diffusion-sizes N ...` | Diffusion / AGSS sizes for experiments 5 and 7 (0 = real data only) |
+| `--diffusion-ratios R ...` | Default ratios for experiments 6 and 8 (default 0.1 0.22 0.3 0.5 0.7 0.9) |
+| `--ratio-samples N` | Synthetic rows per ratio (default 60,000) |
+| `--ddpm-data PATH` | Use an existing TabDDPM file for experiment 3 instead of generating one |
+
+---
+
+## Pipeline
+
+```mermaid
+flowchart TD
+    D["UCI credit card data<br/>30,000 clients, 22.1% default"] --> R["Exp 1: paper replication<br/>stratified 5-fold CV, no oversampling,<br/>weighted metrics"]
+    D --> L["Leaky pipeline<br/>scale all rows, oversample, then split"]
+    D --> S["Stratified 75/25 split"]
+    S --> C["Corrected pipeline<br/>SMOTENC + scaling fitted on train only"]
+    L --> E2["Exp 2: 16 classifiers, leaky vs corrected"]
+    C --> E2
+    S --> G["CTGAN trained on train split"]
+    S --> P["TabDDPM trained on train split,<br/>one model per class"]
+    P --> A["AGSS: ADASYN weights on real<br/>defaulters select pooled rows"]
+    G --> E3["Exp 3: GAN vs Diffusion, 8 models"]
+    P --> E3
+    G --> E4["Exp 4: GAN size scaling"]
+    P --> E56["Exp 5-6: Diffusion size and ratio"]
+    A --> E78["Exp 7-8: AGSS size and ratio"]
+    C --> X["XAI: SHAP, LIME, permutation importance"]
+```
+
+Every experiment after Exp 1 is scored on the same untouched test set: 7,500 real clients with the natural 22.1% default rate.
+
+---
+
+## Dataset
+
+- **UCI Default of Credit Card Clients** — [UCI](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients) · [Kaggle mirror](https://www.kaggle.com/datasets/uciml/default-of-credit-card-clients-dataset). Included as `UCI_Credit_Card.csv`.
+- 30,000 Taiwanese credit card holders, April–September 2005. Amounts in NT dollars. (The paper describes it as a UK dataset in pounds; its own appendix lists NT dollars.)
+- Target `default.payment.next.month`: 23,364 non-default (77.88%), 6,636 default (22.12%).
+- 23 features: `LIMIT_BAL`, `SEX`, `EDUCATION`, `MARRIAGE`, `AGE`, repayment status `PAY_0`, `PAY_2`–`PAY_6`, bill amounts `BILL_AMT1`–`6`, payments `PAY_AMT1`–`6`. The code treats `SEX`, `EDUCATION`, `MARRIAGE` and the six `PAY_*` status columns as categorical.
+
+---
+
+## Results
+
+All tables below are read from `summary/metrics/`. "Optimal threshold" rows pick the F1-maximising threshold **on the test set**, so they are optimistic upper bounds; t = 0.50 rows are not tuned. Each result is a single run with seed 42.
+
+### Experiment 1 — Paper Table 2 replication (`leaky_replication.csv`)
+
+Stratified 5-fold CV on the original (not oversampled) data; weighted metrics as in the paper. Logistic Regression is standardised inside each fold.
+
+| Algorithm | Paper F1 | Replicated F1 | Paper accuracy | Replicated accuracy |
+|---|:---:|:---:|:---:|:---:|
+| Gradient Boosting | 0.80 | 0.800 | 0.82 | 0.821 |
+| Random Forest | 0.80 | 0.796 | 0.82 | 0.819 |
+| Decision Tree | 0.80 | 0.794 | 0.81 | 0.813 |
+| AdaBoost | 0.79 | 0.792 | 0.82 | 0.818 |
+| LDA | 0.78 | 0.775 | 0.81 | 0.811 |
+| LightGBM | 0.78 | 0.795 | 0.79 | 0.821 |
+| MLP | 0.73 | 0.717 | 0.74 | 0.741 |
+| KNN | 0.71 | 0.720 | 0.75 | 0.754 |
+| Logistic Regression | 0.68 | 0.694 | 0.78 | 0.782 |
+| Gaussian Naive Bayes | 0.39 | 0.376 | 0.39 | 0.380 |
+
+Model settings in `get_paper_replication_models` (e.g. Random Forest depth 12, Decision Tree depth 8, Logistic Regression `C=0.0001`, LightGBM depth 3) were chosen to match the published numbers.
+
+### Experiment 2 — Leaky vs corrected pipeline (`leaky_vs_corrected.csv`)
+
+Defaulter-class (class 1) metrics at t = 0.50, top models by corrected F1.
+
+| Algorithm | Leaky F1 | Corrected F1 | Leaky ROC-AUC | Corrected ROC-AUC | Corrected recall | Corrected precision |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| Gradient Boosting | 0.701 | **0.518** | 0.797 | 0.765 | 0.573 | 0.472 |
+| LightGBM | 0.750 | 0.514 | 0.845 | 0.759 | 0.527 | 0.501 |
+| AdaBoost | 0.661 | 0.509 | 0.773 | 0.748 | 0.568 | 0.461 |
+| Hist Gradient Boosting | 0.746 | 0.508 | 0.843 | 0.753 | 0.549 | 0.474 |
+| Random Forest | 0.932 | 0.506 | 0.979 | 0.741 | 0.500 | 0.512 |
+| XGBoost | 0.812 | 0.477 | 0.890 | 0.739 | 0.470 | 0.485 |
+| Logistic Regression | 0.658 | 0.462 | 0.719 | 0.720 | 0.652 | 0.357 |
+| KNN | 0.766 | 0.437 | 0.827 | 0.683 | 0.594 | 0.346 |
+| Decision Tree | 0.885 | 0.409 | 0.874 | 0.616 | 0.491 | 0.350 |
+
+The leaky test set is 50% defaulters (vs 22% in reality) and many of its defaulter rows are copies of training rows. Both effects raise F1, so the gap mixes memorisation with a change in class balance. Flexible models that can memorise rows (Random Forest, Decision Tree, Extra Trees, KNN) show the largest gaps.
+
+### Experiment 3 — GAN vs Diffusion augmentation (`GAN_vs_Diffusion.csv`)
+
+Real training rows plus 120,000 CTGAN rows (natural class mix, about 18% defaulters) or 6,000 TabDDPM rows (50% defaulters). Optimal-threshold rows:
+
+| Model | GAN F1 | GAN ROC-AUC | Diffusion F1 | Diffusion ROC-AUC |
+|---|:---:|:---:|:---:|:---:|
+| Gradient Boosting | 0.512 | 0.748 | **0.542** | **0.779** |
+| Tabular Transformer | 0.517 | 0.759 | 0.539 | 0.776 |
+| Deep MLP | 0.518 | 0.757 | 0.532 | 0.771 |
+| AdaBoost | 0.480 | 0.719 | 0.524 | 0.761 |
+| Random Forest | 0.518 | 0.750 | 0.522 | 0.759 |
+| XGBoost | 0.535 | 0.767 | 0.520 | 0.763 |
+| Logistic Regression | 0.450 | 0.672 | 0.512 | 0.716 |
+| Decision Tree | 0.383 | 0.604 | 0.401 | 0.614 |
+
+Because the CTGAN rows are not rebalanced, this comparison also differs in class balance, not only in generator.
+
+### Experiments 4, 5, 7 — Dataset size scaling (`Gan_size.csv`, `Diffusion_size.csv`, `AGSS_size.csv`)
+
+Gradient Boosting (HistGradientBoosting) trained on 22,500 real rows plus *N* synthetic rows (Diffusion and AGSS: 50% defaulters; GAN: natural mix). Optimal-threshold F1 / ROC-AUC:
+
+| Synthetic rows | GAN F1 | GAN AUC | Diffusion F1 | Diffusion AUC | AGSS F1 | AGSS AUC |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| 0 (real only) | — | — | 0.545 | 0.779 | 0.545 | 0.779 |
+| 100k | 0.532 | 0.770 | 0.533 | 0.771 | 0.533 | 0.764 |
+| 200k | 0.513 | 0.757 | 0.539 | 0.770 | 0.534 | 0.766 |
+| 300k | 0.510 | 0.751 | 0.540 | 0.769 | 0.538 | 0.769 |
+| 400k | 0.498 | 0.745 | 0.539 | 0.771 | 0.538 | 0.766 |
+| 500k | 0.498 | 0.740 | 0.537 | 0.769 | 0.534 | 0.767 |
+| 1M | 0.459 | 0.713 | 0.540 | 0.768 | 0.542 | 0.770 |
+
+Deep MLP, Random Forest and Logistic Regression are in the CSVs and follow the same pattern. At 1M rows AGSS uses the entire diffusion pool, so it converges to plain diffusion sampling. `Gan_size.csv` has no real-only column because it was produced before that baseline was added.
+
+### Experiments 6 and 8 — Default (risk : no-risk) ratio (`Diffusion_ratio.csv`, `AGSS_ratio.csv`)
+
+60,000 synthetic rows with the given share of defaulters, added to the real training data. Gradient Boosting:
+
+| Synthetic default share | Diffusion F1 (t = 0.50) | Diffusion F1 (opt.) | AGSS F1 (t = 0.50) | AGSS F1 (opt.) |
+|---|:---:|:---:|:---:|:---:|
+| real only | 0.475 | 0.545 | 0.475 | 0.545 |
+| 10% | 0.413 | 0.546 | 0.373 | 0.534 |
+| 22% (natural) | 0.477 | 0.542 | 0.480 | 0.536 |
+| 30% | 0.494 | 0.542 | 0.510 | 0.536 |
+| 50% | **0.536** | 0.537 | **0.531** | 0.531 |
+| 70% | 0.529 | 0.532 | 0.494 | 0.533 |
+| 90% | 0.490 | 0.525 | 0.446 | 0.528 |
+
+### Synthetic data fidelity (`synthetic_data_statistical_fidelity.csv`)
+
+Per-feature mean, standard deviation, Kolmogorov–Smirnov statistic and Wasserstein distance of CTGAN and TabDDPM rows against the real training partition. Median KS over the 23 features: CTGAN 0.149, TabDDPM 0.040. The target row differs by design (TabDDPM rows are 50% defaulters).
+
+### Explainability
+
+`train.py` explains the corrected Gradient Boosting model with a SHAP beeswarm, dependence plots (`PAY_0`, `LIMIT_BAL`, `BILL_AMT1`), SHAP waterfalls and LIME for three applicants, and permutation importance for Gradient Boosting and Random Forest. Plots are written to `summary/xai/` (git-ignored). In both SHAP and permutation importance, September repayment status (`PAY_0`) is by far the strongest driver, followed by the credit limit (`LIMIT_BAL`).
+
+---
+
+## Methods
+
+| Component | Implementation |
+|---|---|
+| Leaky pipeline | `src/data.py::prepare_leaky_pipeline` — global `StandardScaler`, `RandomOverSampler`, then random 75/25 split |
+| Corrected pipeline | `src/data.py::prepare_corrected_pipeline` — stratified 75/25 split, `SMOTENC` on train only, scaler fitted on train only |
+| Classifiers | `src/models.py` — 16 scikit-learn / XGBoost / LightGBM models, a 3-layer MLP (128-64-32) and a PyTorch Tabular Transformer |
+| CTGAN | `src/generator_gan.py` — trained on the training split (20 epochs), values clipped to training bounds |
+| TabDDPM | `src/generator_diffusion.py` — synthcity `ddpm`, one model per class, 2,000 iterations; `build_tabddpm_pool` caches a pool that size/ratio experiments sample without replacement |
+| AGSS | `src/generator_agss.py` — each real defaulter gets a weight equal to the share of non-defaulters among its 5 nearest training neighbours (ADASYN); synthetic defaulters are drawn from the TabDDPM pool around each real defaulter in proportion to its weight (closest first); non-defaulters are drawn uniformly |
+| Evaluation | `src/evaluation.py` — accuracy, class-1 precision / recall / F1, ROC-AUC at t = 0.50 and at the F1-optimal threshold; stratified 10-fold threshold curves |
+| Explainability | `src/explainability.py` — SHAP, LIME, permutation importance, single-applicant risk scoring |
+
+---
+
+## Generating synthetic datasets directly
 
 ```bash
-# --- A. Generate GAN Datasets Separately (data_generator_gan.py) ---
-# Generate 50:50 balanced corrected GAN dataset (30,000 defaults, 30,000 non-defaults)
+# CTGAN: 30,000 defaults + 30,000 non-defaults, trained on the 75% training split
 python data_generator_gan.py --mode corrected --defaults 30000 --non-defaults 30000
-
-# Or generate with a specific default ratio (e.g. 30% defaults out of 60,000)
 python data_generator_gan.py --mode corrected --ratio 0.3 --total 60000
-
-# Or run interactive prompt mode
 python data_generator_gan.py --interactive
 
-# --- B. Generate Diffusion Datasets Separately (data_generator_diffusion.py) ---
-# Generate balanced corrected TabDDPM diffusion dataset (1,000 defaults, 1,000 non-defaults)
+# TabDDPM
 python data_generator_diffusion.py --mode corrected --defaults 1000 --non-defaults 1000
-
-# Or run interactive prompt mode
 python data_generator_diffusion.py --interactive
 ```
 
+`--mode leaky` trains the generator on all 30,000 rows (including the test partition) for comparison. Leaky models are never cached where the corrected pipeline can reload them (CTGAN: no model cache; TabDDPM: `data/diffusion_leaky/`). Output goes to `data/data_<gan|diffusion>_<mode>.csv`.
 
 ---
 
-## Dataset Notation Explained (Plain English)
-
-To make evaluation simple and transparent, all pipelines and generated datasets use straightforward, self-evident naming:
-
-| Dataset Name | Type | Description | Result / Impact |
-|---|:---:|---|---|
-| **`data_normal_leaky`** | Baseline | **Flawed Paper Pipeline:** Random oversampling applied to the **entire dataset before train/test splitting**. Identical copies of training rows are leaked into the test partition. | **Artificially inflated metrics** ($F_1 \approx 0.88 - 0.94$). Models memorize test samples. |
-| **`data_normal_corrected`** | Baseline | **Honest Pipeline:** Raw data is split 75/25 **first**. `SMOTENC` is applied **strictly to the training partition**. Test partition remains 100% clean and untouched. | **True real-world ceiling** ($F_1 \approx 0.51$, $\text{ROC-AUC} \approx 0.76$). |
-| **`data_gan_leaky`** | Generative | **Leaky GAN:** Conditional Tabular GAN (CTGAN) trained on 100% of the dataset prior to splitting. | Measures whether deep generative models also induce leakage when trained globally. |
-| **`data_gan_corrected`** | Generative | **Zero-Leakage GAN:** CTGAN trained **strictly on the 75% training split**. Synthetic records augment the train partition to balance classes. | Legitimate performance gain without any test data contamination ($F_1 = 0.52 - 0.54$). |
-| **`data_diffusion_leaky`** | Generative | **Leaky Diffusion:** Tabular Diffusion (TabDDPM) trained on 100% of the dataset before splitting. | Evaluates the leakage vulnerability of score-based diffusion transitions. |
-| **`data_diffusion_corrected`**| Generative | **Zero-Leakage Diffusion:** TabDDPM trained **strictly on the 75% training split** using continuous Gaussian diffusion and bounds restoration. | High-fidelity synthetic generation for robust minority oversampling. |
-
----
-
-## The Data Leakage Inflation Gap
-
-When oversampling is mistakenly applied before partitioning, high-variance tree models memorized duplicate rows. Once the leakage is eliminated, the true predictive ceiling is revealed:
-
-```
-                           DATA LEAKAGE INFLATION GAP
-                   (Published Leaky vs. Honest Corrected F1)
-                   
-Decision Tree        [======= Honest 0.389 =======][==== +0.495 INFLATION ====>] 0.885
-Extra Tree           [======= Honest 0.380 =======][==== +0.508 INFLATION ====>] 0.889
-Extra Trees          [============== Honest 0.481 =============][= +0.462 ====>] 0.943
-Random Forest        [============== Honest 0.486 =============][= +0.447 ====>] 0.932
-XGBoost              [============== Honest 0.480 =============][= +0.332 ====>] 0.812
-KNN                  [============ Honest 0.442 ===========][=== +0.324 ======>] 0.766
-Gaussian NB          [========== Honest 0.389 ==========][==== +0.290 ========>] 0.679
-Hist Gradient Boost  [============== Honest 0.488 =============][= +0.257 ====>] 0.746
-MLP Classifier       [============== Honest 0.495 =============][= +0.245 ====>] 0.740
-Gradient Boosting    [=============== Honest 0.511 ============][= +0.191 ====>] 0.701
-Logistic Regression  [============= Honest 0.465 ============][== +0.192 =====>] 0.658
-LDA / Ridge          [============= Honest 0.468 ============][== +0.186 =====>] 0.654
-AdaBoost             [=============== Honest 0.501 ============][= +0.160 ====>] 0.661
-```
-
----
-
-## Research Architecture
-
-![Credit Risk Research Architecture](architecture_pipeline.png)
-
----
-
-## Datasets & Literature Foundations
-
-### Primary Dataset
-- **Name:** UCI *Default of Credit Card Clients Dataset*
-- **UCI URL:** [https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients)
-- **Kaggle Mirror:** [https://www.kaggle.com/datasets/uciml/default-of-credit-card-clients-dataset](https://www.kaggle.com/datasets/uciml/default-of-credit-card-clients-dataset)
-- **Scale:** 30,000 observations of Taiwanese credit card holders (April–September 2005).
-- **Target:** `default.payment.next.month` (Binary: 0 = Non-default [77.88%], 1 = Default [22.12%]).
-- **Features (23 total):**
-  - Continuous (14): `LIMIT_BAL`, `AGE`, `BILL_AMT1`–`BILL_AMT6`, `PAY_AMT1`–`PAY_AMT6`.
-  - Discrete / Categorical (9): `SEX`, `EDUCATION`, `MARRIAGE`, `PAY_0`, `PAY_2`–`PAY_6`.
-
-### Literature Foundations & Citations
-1. **Audited Paper:**
-   - Xu, Q. A., Benson, V., & Chang, V. (2024). *Prediction of bank credit worthiness through credit risk analysis: an explainable machine learning study.* **Annals of Operations Research**, 354(1), 247–271. [DOI: 10.1007/s10479-024-06134-x](https://link.springer.com/article/10.1007/s10479-024-06134-x).
-2. **Generative Modeling Foundations:**
-   - **TTVAE:** Wang, A. X., & Nguyen, B. P. (2025). *TTVAE: Transformer-based generative modeling for tabular data generation.* **Artificial Intelligence**, 340, 104292. [DOI: 10.1016/j.artint.2025.104292](https://doi.org/10.1016/j.artint.2025.104292).
-   - **CTGAN:** Xu, L., Skoularidou, M., Cuesta-Infante, A., & Veeramachaneni, K. (2019). *Modeling Tabular Data using Conditional GAN.* **NeurIPS 2019**, 7335–7345.
-   - **Foundational GAN:** Goodfellow, I. J., et al. (2014). *Generative Adversarial Nets.* **NeurIPS 2014**, 2672–2680.
-   - **TabDDPM:** Kotelnikov, A., Baranchuk, D., Rubachev, I., & Babenko, A. (2023). *TabDDPM: Modelling Tabular Data with Diffusion Models.* **ICML 2023**, 17564–17579.
-
----
-
-## Empirical Replication Table (Xu et al. 2024 Table 2 vs. Replicated Baseline)
-
-As specified in Xu et al. (2024) Sections 4.1–4.2, the published baseline was evaluated using **Stratified 5-Fold Cross-Validation** with **weighted-average metrics** and **Precision-Recall (PR) AUC**. Our replication achieves virtually exact numerical parity across all 10 algorithms ($|\Delta \text{Recall}| \le 0.004$ across 8 algorithms, $|\Delta| \le 0.03$ max):
-
-| Algorithm | Paper Recall | Replicated Recall (5-Fold CV) | Recall Difference ($\Delta$) | Paper $F_1$ | Replicated $F_1$ (5-Fold CV) | $F_1$ Difference ($\Delta$) | Paper Accuracy | Replicated Accuracy | Paper PR-AUC | Replicated PR-AUC |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Gradient Boosting** | 0.82 | **0.8212** | **+0.0012** | 0.80 | **0.8001** | **+0.0001** | 0.82 | **0.8212** | 0.66 | 0.5535 |
-| **Random Forest** | 0.82 | **0.8186** | **-0.0014** | 0.80 | **0.7964** | **-0.0036** | 0.82 | **0.8186** | 0.66 | 0.5568 |
-| **Decision Tree** | 0.81 | **0.8129** | **+0.0029** | 0.80 | **0.7935** | **-0.0065** | 0.81 | **0.8129** | 0.66 | 0.4995 |
-| **AdaBoost** | 0.82 | **0.8182** | **-0.0018** | 0.79 | **0.7922** | **+0.0022** | 0.82 | **0.8182** | 0.64 | 0.5330 |
-| **LDA** | 0.81 | **0.8114** | **+0.0014** | 0.78 | **0.7752** | **-0.0048** | 0.81 | **0.8114** | 0.61 | 0.4997 |
-| **Logistic Regression** | 0.78 | **0.7821** | **+0.0021** | 0.68 | **0.6941** | **+0.0141** | 0.78 | **0.7821** | 0.50 | 0.4843 |
-| **KNN** | 0.75 | **0.7543** | **+0.0043** | 0.71 | **0.7198** | **+0.0098** | 0.75 | **0.7543** | 0.54 | 0.3238 |
-| **MLP Classifier** | 0.74 | **0.7414** | **+0.0014** | 0.73 | **0.7165** | **-0.0135** | 0.74 | **0.7414** | 0.59 | 0.4012 |
-| **Gaussian Naive Bayes** | 0.39 | **0.3804** | **-0.0096** | 0.39 | **0.3760** | **-0.0140** | 0.39 | **0.3804** | 0.56 | 0.4140 |
-| **LightGBM** | 0.79 | **0.8206** | **+0.0306** | 0.78 | **0.7953** | **+0.0153** | 0.79 | **0.8206** | 0.63 | 0.5482 |
-
-![Paper Replication Match](summary/charts/paper_replication_match.png)
-
----
-
-## Methodological Data Leakage Audit (Minority Default Detection: Class 1)
-
-While the paper achieved ~82% weighted recall, in class-imbalanced credit risk (22.12% default rate), **weighted recall mathematically equals accuracy** ($\text{Weighted Recall} \equiv \sum \frac{N_c}{N} R_c = \text{Accuracy}$). Consequently, weighted recall is dominated by the 77.88% non-default majority class.
-
-When evaluating actual credit risk detection (**minority default class $y=1$**), applying Random Oversampling (ROS) before partitioning (`data_normal_leaky`) causes severe synthetic test pollution, whereas an honest zero-leakage pipeline (`data_normal_corrected`) reveals true out-of-sample generalization:
-
-| Algorithm | Paper Published $F_1$ | Naive Leaky $F_1$ (Test Leakage) | Honest Corrected $F_1$ (Pristine Test) | $F_1$ Inflation Gap | Paper Recall | Naive Leaky Recall ($t=0.50$) | Honest Corrected Recall ($t=0.50$) |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Decision Tree** | 0.80 | **0.8848** | 0.4089 | **+0.4758** | 0.81 | 0.9599 | 0.4913 |
-| **Random Forest** | 0.80 | **0.9323** | 0.5060 | **+0.4263** | 0.82 | 0.9673 | 0.4997 |
-| **KNN** | 0.71 | **0.7660** | 0.4374 | **+0.3285** | 0.75 | 0.8282 | 0.5943 |
-| **Gaussian Naive Bayes** | 0.39 | **0.6791** | 0.3948 | **+0.2844** | 0.39 | 0.8054 | 0.8987 |
-| **MLP Classifier** | 0.73 | **0.7403** | 0.4689 | **+0.2714** | 0.74 | 0.7561 | 0.6655 |
-| **LightGBM** | 0.78 | **0.7498** | 0.5136 | **+0.2362** | 0.79 | 0.7174 | 0.5274 |
-| **Logistic Regression** | 0.68 | **0.6576** | 0.4615 | **+0.1961** | 0.78 | 0.6350 | 0.6516 |
-| **LDA** | 0.78 | **0.6540** | 0.4617 | **+0.1923** | 0.81 | 0.6220 | 0.6371 |
-| **Gradient Boosting** | 0.80 | **0.7012** | 0.5178 | **+0.1833** | 0.82 | 0.6461 | 0.5732 |
-| **AdaBoost** | 0.79 | **0.6607** | 0.5090 | **+0.1516** | 0.82 | 0.5775 | 0.5684 |
-
-![Data Leakage Gap](summary/charts/leakage_gap.png)
-
-
-## Generative Tabular Deep Learning Benchmarks
-
-Evaluated on the unpolluted pristine test partition (7,500 samples, 22.12% natural default rate):
-
-| Algorithm | Training Dataset | Accuracy | Recall | Precision | $F_1$ Score | ROC-AUC | Optimal Threshold ($t^*$) |
-|---|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Hist Gradient Boosting** | `data_gan_corrected` (Opt. Thresh) | 0.7863 | 0.5575 | 0.5067 | **0.5309** | 0.7621 | 0.25 |
-| **XGBoost** | `data_gan_corrected` (Opt. Thresh) | 0.7848 | 0.5612 | 0.5036 | **0.5308** | 0.7585 | 0.27 |
-| **Deep MLP Classifier** | `data_gan_corrected` (Opt. Thresh) | 0.7827 | 0.5533 | 0.5080 | **0.5297** | 0.7661 | 0.27 |
-| **Tabular Transformer (DL)**| `data_gan_corrected` (Opt. Thresh) | 0.7836 | 0.5372 | 0.5011 | **0.5185** | 0.7562 | 0.23 |
-| **Random Forest** | `data_gan_corrected` (Opt. Thresh) | 0.7687 | 0.5556 | 0.4718 | **0.5103** | 0.7494 | 0.28 |
-| **Gradient Boosting** | `data_gan_corrected` (Opt. Thresh) | 0.7871 | 0.4985 | 0.5094 | **0.5039** | 0.7492 | 0.25 |
-| **Tabular Transformer (DL)**| `data_gan_corrected` ($t=0.50$) | 0.8160 | 0.3276 | 0.6508 | 0.4358 | 0.7562 | 0.50 |
-| **Deep MLP Classifier** | `data_diffusion_corrected` (Opt. Thresh)| 0.7801 | 0.5482 | 0.4991 | **0.5224** | 0.7610 | 0.28 |
-
----
-
-## Clean Repository Structure
+## Repository structure
 
 ```
 .
-├── train.py                                # Main training & evaluation pipeline (produces 5 standardized CSVs)
-├── data_generator_gan.py                   # Dedicated GAN (CTGAN) dataset generator
-├── data_generator_diffusion.py             # Dedicated Diffusion (TabDDPM) dataset generator
-├── credit_risk_research_pipeline.ipynb     # Consolidated end-to-end research notebook
-├── UCI_Credit_Card.csv                     # Primary dataset (30,000 observations)
-├── requirements.txt                        # Virtual environment dependencies
-├── architecture_pipeline.png               # High-resolution pipeline architecture diagram
-├── src/                                    # Clean modular source package
-│   ├── __init__.py                         # Package initialization
-│   ├── data.py                             # Data loading & Leaky vs. Corrected pipelines
-│   ├── generator_gan.py                    # Dedicated CTGAN generator module with model caching
-│   ├── generator_diffusion.py              # Dedicated TabDDPM diffusion generator module
-│   ├── models.py                           # 16 ML classifiers, Deep MLP & PyTorch TabularTransformer
-│   ├── evaluation.py                       # Evaluation metrics, 4-scenario tables & size scaling
-│   ├── explainability.py                   # SHAP, LIME, Permutation Importance & risk scoring
-│   └── visualizations.py                   # Comparison plots & synthetic fidelity validation
-├── data/                                   # Generated synthetic datasets & model caches (gitignored)
-│   ├── ctgan_synthetic_120000.parquet      # Pre-generated CTGAN distribution
-│   └── synthetic_tabddpm.csv               # TabDDPM synthetic dataset
-└── summary/                                # Research outputs, reports, and publication figures
-    ├── charts/                             # Scenario comparison plots & diagnostic fidelity charts
-    ├── metrics/                            # Standardized 5 research CSV metrics (tracked in git)
-    │   ├── leaky_replication.csv           # Replicates Xu et al. (2024) Table 2 (10 algorithms, 5-fold CV)
-    │   ├── leaky_vs_corrected.csv          # 4 results per model: Leaky vs Corrected x Normal vs Opt Threshold
-    │   ├── GAN_vs_Diffusion.csv            # 4 results per model: GAN vs Diffusion x Normal vs Opt Threshold
-    │   ├── Gan_size.csv                    # CTGAN generative size scaling (100k, 200k, 300k, 400k, 500k, 1M)
-    │   ├── Diffusion_size.csv              # TabDDPM generative size scaling (100k, 200k, 300k, 400k, 500k, 1M)
-    │   └── synthetic_data_statistical_fidelity.csv # KS-tests, Wasserstein distance, mean/std fidelity
-    ├── threshold_plots/                    # Stratified 10-fold CV threshold calibration curves
-    └── xai/                                # SHAP beeswarm, dependence, waterfall & LIME plots
+├── train.py                             # Runs experiments 1-8 and the XAI suite
+├── data_generator_gan.py                # CLI: CTGAN datasets (corrected / leaky)
+├── data_generator_diffusion.py          # CLI: TabDDPM datasets (corrected / leaky)
+├── credit_risk_research_pipeline.ipynb  # Notebook walkthrough of the main experiments
+├── UCI_Credit_Card.csv                  # Dataset (30,000 rows)
+├── requirements.txt
+├── src/
+│   ├── data.py                          # Loading, leaky and corrected pipelines
+│   ├── models.py                        # Classifiers, Deep MLP, Tabular Transformer
+│   ├── evaluation.py                    # Metrics, thresholds, replication, size / ratio benchmarks
+│   ├── generator_gan.py                 # CTGAN generator
+│   ├── generator_diffusion.py           # TabDDPM generator and pool
+│   ├── generator_agss.py                # Adaptive Generative Synthetic Sampling
+│   ├── explainability.py                # SHAP, LIME, permutation importance, risk scoring
+│   └── visualizations.py                # Charts and synthetic-data fidelity
+├── summary/metrics/                     # Result tables (tracked in git)
+│   ├── leaky_replication.csv            # Exp 1
+│   ├── leaky_vs_corrected.csv           # Exp 2
+│   ├── GAN_vs_Diffusion.csv             # Exp 3
+│   ├── Gan_size.csv                     # Exp 4
+│   ├── Diffusion_size.csv               # Exp 5
+│   ├── Diffusion_ratio.csv              # Exp 6
+│   ├── AGSS_size.csv                    # Exp 7
+│   ├── AGSS_ratio.csv                   # Exp 8
+│   └── synthetic_data_statistical_fidelity.csv
+└── data/                                # Generated data and model caches (git-ignored)
 ```
+
+Charts, threshold plots and XAI figures are written to `summary/charts/`, `summary/threshold_plots/` and `summary/xai/` (git-ignored).
 
 ---
 
-## Step-by-Step Setup & Reproduction
+## Limitations
 
-### 1. Set Up Python Virtual Environment
-```bash
-# Clone the repository
-git clone https://github.com/Tashya924/ML-research-on-credit-risk-analysis.git
-cd ML-research-on-credit-risk-analysis
-
-# Create and activate virtual environment
-python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Upgrade pip and install dependencies
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### 2. Run Training Pipeline (`train.py`)
-```bash
-# Run full benchmark across all models and scaling sizes up to 1M
-python train.py --gan-sizes 100000 200000 300000 400000 500000 1000000 --diffusion-sizes 100000 200000 300000 400000 500000 1000000
-
-# Run fast smoke-test mode (~2 mins)
-python train.py --quick
-
-# Run benchmarks 1, 2, 3 only (skip size scaling)
-python train.py --skip-sizes
-```
-
-### 3. Generate Custom Synthetic Datasets Separately
-
-#### A. Generate GAN Datasets (data_generator_gan.py)
-```bash
-# Generate 50:50 balanced CTGAN data (30,000 defaults, 30,000 non-defaults)
-python data_generator_gan.py --mode corrected --defaults 30000 --non-defaults 30000
-
-# Or with ratio specification (e.g. 50% default out of 60,000)
-python data_generator_gan.py --mode corrected --ratio 0.5 --total 60000
-
-# Interactive mode
-python data_generator_gan.py --interactive
-```
-
-#### B. Generate Diffusion Datasets (data_generator_diffusion.py)
-```bash
-# Generate balanced TabDDPM diffusion data (1,000 defaults, 1,000 non-defaults)
-python data_generator_diffusion.py --mode corrected --defaults 1000 --non-defaults 1000
-
-# Interactive mode
-python data_generator_diffusion.py --interactive
-```
-
-### 4. Interactive Jupyter Notebook
-```bash
-jupyter notebook credit_risk_research_pipeline.ipynb
-```
-
+- Single train/test split and single seed; many differences between augmentation methods are around 0.005–0.01 F1. Repeated splits with confidence intervals are needed before claiming one method is better.
+- "Optimal threshold" results are tuned on the test set and are therefore optimistic.
+- CTGAN is trained for 20 epochs and sampled in its natural class mix; longer training and explicit class counts would make the GAN comparison fairer.
+- TabDDPM models every column as continuous (tiny noise is added, values are rounded and clipped back), so a small share of generated category codes can be invalid.
 
 ---
 
-## Citations & Academic References
+## References
 
 ```bibtex
-@article{xu2024prediction,
-  title={Prediction of bank credit worthiness through credit risk analysis: an explainable machine learning study},
-  author={Xu, Qianwen Ariel and Benson, Vladlena and Chang, Victor},
-  journal={Annals of Operations Research},
-  volume={354},
-  number={1},
-  pages={247--271},
-  year={2024},
-  publisher={Springer},
-  doi={10.1007/s10479-024-06134-x}
+@article{chang2025prediction,
+  title   = {Prediction of bank credit worthiness through credit risk analysis: an explainable machine learning study},
+  author  = {Chang, Victor and Xu, Qianwen Ariel and Akinloye, Shola Habib and Benson, Vladlena and Hall, Karl},
+  journal = {Annals of Operations Research},
+  volume  = {354},
+  pages   = {247--271},
+  year    = {2025},
+  doi     = {10.1007/s10479-024-06134-x}
 }
 
-@article{wang2025ttvae,
-  title={TTVAE: Transformer-based generative modeling for tabular data generation},
-  author={Wang, Alex X. and Nguyen, Binh P.},
-  journal={Artificial Intelligence},
-  volume={340},
-  pages={104292},
-  year={2025},
-  publisher={Elsevier},
-  doi={10.1016/j.artint.2025.104292}
-}
-
-@inproceedings{xu2019modeling,
-  title={Modeling tabular data using conditional GAN},
-  author={Xu, Lei and Skoularidou, Maria and Cuesta-Infante, Alfredo and Veeramachaneni, Kalyan},
-  booktitle={Advances in Neural Information Processing Systems (NeurIPS)},
-  volume={32},
-  pages={7335--7345},
-  year={2019}
-}
-
-@inproceedings{goodfellow2014generative,
-  title={Generative adversarial nets},
-  author={Goodfellow, Ian and Pouget-Abadie, Jean and Mirza, Mehdi and Xu, Bing and Warde-Farley, David and Ozair, Sherjil and Courville, Aaron and Bengio, Yoshua},
-  booktitle={Advances in Neural Information Processing Systems (NeurIPS)},
-  volume={27},
-  pages={2672--2680},
-  year={2014}
+@inproceedings{xu2019ctgan,
+  title     = {Modeling Tabular Data using Conditional {GAN}},
+  author    = {Xu, Lei and Skoularidou, Maria and Cuesta-Infante, Alfredo and Veeramachaneni, Kalyan},
+  booktitle = {Advances in Neural Information Processing Systems},
+  volume    = {32},
+  year      = {2019}
 }
 
 @inproceedings{kotelnikov2023tabddpm,
-  title={TabDDPM: Modelling tabular data with diffusion models},
-  author={Kotelnikov, Akim and Baranchuk, Dmitry and Rubachev, Ivan and Babenko, Artem},
-  booktitle={International Conference on Machine Learning (ICML)},
-  pages={17564--17579},
-  year={2023}
+  title     = {{TabDDPM}: Modelling Tabular Data with Diffusion Models},
+  author    = {Kotelnikov, Akim and Baranchuk, Dmitry and Rubachev, Ivan and Babenko, Artem},
+  booktitle = {International Conference on Machine Learning},
+  pages     = {17564--17579},
+  year      = {2023}
+}
+
+@inproceedings{he2008adasyn,
+  title     = {{ADASYN}: Adaptive synthetic sampling approach for imbalanced learning},
+  author    = {He, Haibo and Bai, Yang and Garcia, Edwardo A. and Li, Shutao},
+  booktitle = {IEEE International Joint Conference on Neural Networks},
+  pages     = {1322--1328},
+  year      = {2008}
+}
+
+@article{chawla2002smote,
+  title   = {{SMOTE}: Synthetic Minority Over-sampling Technique},
+  author  = {Chawla, Nitesh V. and Bowyer, Kevin W. and Hall, Lawrence O. and Kegelmeyer, W. Philip},
+  journal = {Journal of Artificial Intelligence Research},
+  volume  = {16},
+  pages   = {321--357},
+  year    = {2002}
 }
 ```
-
----
-
-## License
-
-MIT License. See [LICENSE](LICENSE) for terms.
