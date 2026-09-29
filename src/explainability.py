@@ -4,7 +4,7 @@ Permutation Feature Importance, and customer credit risk scoring.
 """
 
 import os
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Sequence
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -120,7 +120,7 @@ def generate_lime_analysis(
     X_test: np.ndarray,
     feature_names: List[str],
     output_dir: str = "summary/xai",
-    applicant_indices: List[int] = [0, 1, 2]
+    applicant_indices: Sequence[int] = (0, 1, 2)
 ):
     """
     Generates LIME local explanations for sample applicants.
@@ -230,7 +230,7 @@ def score_applicant_risk(
 ) -> Dict[str, Any]:
     """
     Scores an applicant record: returns predicted probability, binary decision,
-    calibrated risk tier, and top contributing risk factors.
+    risk tier (fixed probability bands), and top contributing risk factors.
     """
     raw_df = pd.DataFrame([applicant_data])
     scaled_features = preprocessor.transform(raw_df)

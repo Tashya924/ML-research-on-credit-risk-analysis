@@ -25,7 +25,6 @@ Usage:
 import os
 import sys
 import argparse
-import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from src.data import load_credit_data, get_feature_lists, TARGET_COL
@@ -122,7 +121,7 @@ def main():
     df = load_credit_data(data_path)
     X = df.drop(columns=[TARGET_COL])
     y = df[TARGET_COL]
-    cat_cols, num_cols, _ = get_feature_lists(X)
+    cat_cols, _, _ = get_feature_lists(X)
 
     if mode == "corrected":
         # Strict zero-leakage: fit only on training partition

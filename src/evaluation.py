@@ -155,9 +155,6 @@ def replicate_paper_table2(
     models = get_paper_replication_models(random_state=random_state)
     cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
 
-    scaler = StandardScaler()
-    X_scaled = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
-
     rows = []
     print(f"[*] Replicating Xu et al. (2024) Table 2 across {len(models)} algorithms using Stratified {n_splits}-Fold CV...")
 
@@ -168,11 +165,12 @@ def replicate_paper_table2(
         p_folds, r_folds, f_folds, acc_folds, auc_folds = [], [], [], [], []
 
         for tr_idx, te_idx in cv.split(X, y):
+            X_tr, X_te = X.iloc[tr_idx], X.iloc[te_idx]
             # As noted in Xu et al. (2024) Section 4.1, Z-score standardization was applied for Logistic Regression
+            # (scaler fitted on the training folds only)
             if name == "Logistic Regression":
-                X_tr, X_te = X_scaled.iloc[tr_idx], X_scaled.iloc[te_idx]
-            else:
-                X_tr, X_te = X.iloc[tr_idx], X.iloc[te_idx]
+                scaler = StandardScaler().fit(X_tr)
+                X_tr, X_te = scaler.transform(X_tr), scaler.transform(X_te)
             y_tr, y_te = y.iloc[tr_idx], y.iloc[te_idx]
 
             m_clone = clone(model)
@@ -263,175 +261,76 @@ def audit_paper_replication(results_df: pd.DataFrame) -> pd.DataFrame:
     return audit_df
 
 
-def format_leaky_vs_corrected(benchmark_df: pd.DataFrame) -> pd.DataFrame:
+def _pivot_two_scenarios(
+    df: pd.DataFrame, name_a: str, name_b: str, prefix_a: str, prefix_b: str, delta_col: str
+) -> pd.DataFrame:
     """
-    Formats the comparative benchmark into a compact, viewable 2-row-per-model table:
-      Row 1: Standard (t=0.50)
-      Row 2: Optimal Threshold
-    Comparing Leaky vs Corrected datasets side-by-side with F1 Leakage Gap.
+    Two rows per algorithm (Standard t=0.50, Optimal Threshold) with the metrics of
+    scenario A and scenario B side by side and the F1 difference A - B.
+    Scenarios are named "<name> (t=0.50)" and "<name> (Opt. Thresh)".
     """
-    df = benchmark_df.copy()
-    if "Threshold_Type" in df.columns:
-        return df
-
     if "ROC_AUC" in df.columns and "ROC-AUC" not in df.columns:
         df = df.rename(columns={"ROC_AUC": "ROC-AUC"})
 
-    scenario_map = {
-        "data_normal_leaky": "Leaky (t=0.50)",
-        "data_normal_leaky (Opt. Thresh)": "Leaky (Opt. Thresh)",
-        "data_normal_corrected": "Corrected (t=0.50)",
-        "data_normal_corrected (Opt. Thresh)": "Corrected (Opt. Thresh)",
-        "Leaky (t=0.50)": "Leaky (t=0.50)",
-        "Leaky (Opt. Thresh)": "Leaky (Opt. Thresh)",
-        "Corrected (t=0.50)": "Corrected (t=0.50)",
-        "Corrected (Opt. Thresh)": "Corrected (Opt. Thresh)"
-    }
-    df["Scenario"] = df["Scenario"].map(lambda s: scenario_map.get(s, s))
+    def metrics(prefix, r):
+        return {
+            f"{prefix}_Threshold": round(float(r["Threshold"]), 2),
+            f"{prefix}_F1": round(float(r["F1"]), 4),
+            f"{prefix}_ROC_AUC": round(float(r["ROC-AUC"]), 4),
+            f"{prefix}_Recall": round(float(r["Recall"]), 4),
+            f"{prefix}_Precision": round(float(r["Precision"]), 4),
+            f"{prefix}_Accuracy": round(float(r["Accuracy"]), 4) if "Accuracy" in r else np.nan,
+        }
 
     rows = []
     for algo, grp in df.groupby("Algorithm", sort=True):
-        l_def = grp[grp["Scenario"] == "Leaky (t=0.50)"]
-        l_opt = grp[grp["Scenario"] == "Leaky (Opt. Thresh)"]
-        c_def = grp[grp["Scenario"] == "Corrected (t=0.50)"]
-        c_opt = grp[grp["Scenario"] == "Corrected (Opt. Thresh)"]
-
-        if l_def.empty or c_def.empty:
+        pick = lambda sc: grp[grp["Scenario"] == sc]
+        a_def, b_def = pick(f"{name_a} (t=0.50)"), pick(f"{name_b} (t=0.50)")
+        if a_def.empty or b_def.empty:
             continue
+        a_opt, b_opt = pick(f"{name_a} (Opt. Thresh)"), pick(f"{name_b} (Opt. Thresh)")
+        a_def, b_def = a_def.iloc[0], b_def.iloc[0]
+        a_opt = a_opt.iloc[0] if not a_opt.empty else a_def
+        b_opt = b_opt.iloc[0] if not b_opt.empty else b_def
 
-        l_def = l_def.iloc[0]
-        l_opt = l_opt.iloc[0] if not l_opt.empty else l_def
-        c_def = c_def.iloc[0]
-        c_opt = c_opt.iloc[0] if not c_opt.empty else c_def
+        for label, ra, rb in [("Standard (t=0.50)", a_def, b_def), ("Optimal Threshold", a_opt, b_opt)]:
+            rows.append({
+                "Algorithm": algo,
+                "Threshold_Type": label,
+                **metrics(prefix_a, ra),
+                **metrics(prefix_b, rb),
+                delta_col: round(float(ra["F1"]) - float(rb["F1"]), 4)
+            })
+    return pd.DataFrame(rows)
 
-        rows.append({
-            "Algorithm": algo,
-            "Threshold_Type": "Standard (t=0.50)",
-            "Leaky_Threshold": round(float(l_def["Threshold"]), 2),
-            "Leaky_F1": round(float(l_def["F1"]), 4),
-            "Leaky_ROC_AUC": round(float(l_def["ROC-AUC"]), 4),
-            "Leaky_Recall": round(float(l_def["Recall"]), 4),
-            "Leaky_Precision": round(float(l_def["Precision"]), 4),
-            "Leaky_Accuracy": round(float(l_def["Accuracy"]), 4) if "Accuracy" in l_def else np.nan,
-            "Corrected_Threshold": round(float(c_def["Threshold"]), 2),
-            "Corrected_F1": round(float(c_def["F1"]), 4),
-            "Corrected_ROC_AUC": round(float(c_def["ROC-AUC"]), 4),
-            "Corrected_Recall": round(float(c_def["Recall"]), 4),
-            "Corrected_Precision": round(float(c_def["Precision"]), 4),
-            "Corrected_Accuracy": round(float(c_def["Accuracy"]), 4) if "Accuracy" in c_def else np.nan,
-            "F1_Leakage_Gap": round(float(l_def["F1"]) - float(c_def["F1"]), 4)
-        })
-        rows.append({
-            "Algorithm": algo,
-            "Threshold_Type": "Optimal Threshold",
-            "Leaky_Threshold": round(float(l_opt["Threshold"]), 2),
-            "Leaky_F1": round(float(l_opt["F1"]), 4),
-            "Leaky_ROC_AUC": round(float(l_opt["ROC-AUC"]), 4),
-            "Leaky_Recall": round(float(l_opt["Recall"]), 4),
-            "Leaky_Precision": round(float(l_opt["Precision"]), 4),
-            "Leaky_Accuracy": round(float(l_opt["Accuracy"]), 4) if "Accuracy" in l_opt else np.nan,
-            "Corrected_Threshold": round(float(c_opt["Threshold"]), 2),
-            "Corrected_F1": round(float(c_opt["F1"]), 4),
-            "Corrected_ROC_AUC": round(float(c_opt["ROC-AUC"]), 4),
-            "Corrected_Recall": round(float(c_opt["Recall"]), 4),
-            "Corrected_Precision": round(float(c_opt["Precision"]), 4),
-            "Corrected_Accuracy": round(float(c_opt["Accuracy"]), 4) if "Accuracy" in c_opt else np.nan,
-            "F1_Leakage_Gap": round(float(l_opt["F1"]) - float(c_opt["F1"]), 4)
-        })
 
-    pivoted_df = pd.DataFrame(rows)
-    return pivoted_df
+def format_leaky_vs_corrected(benchmark_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Formats the comparative benchmark into a compact, viewable 2-row-per-model table
+    comparing Leaky vs Corrected datasets side-by-side with the F1 leakage gap.
+    """
+    if "Threshold_Type" in benchmark_df.columns:
+        return benchmark_df
+    df = benchmark_df.copy()
+    df["Scenario"] = (df["Scenario"]
+                      .str.replace("data_normal_leaky", "Leaky", regex=False)
+                      .str.replace("data_normal_corrected", "Corrected", regex=False))
+    df.loc[df["Scenario"].isin(["Leaky", "Corrected"]), "Scenario"] += " (t=0.50)"
+    return _pivot_two_scenarios(df, "Leaky", "Corrected", "Leaky", "Corrected", "F1_Leakage_Gap")
 
 
 def format_gan_vs_diffusion(gan_df: pd.DataFrame, diff_df: pd.DataFrame = None) -> pd.DataFrame:
     """
-    Formats the GAN vs Diffusion comparative results into a compact, viewable 2-row-per-model table:
-      Row 1: Standard (t=0.50)
-      Row 2: Optimal Threshold
-    Comparing GAN vs Diffusion datasets side-by-side with F1 Delta.
+    Formats the GAN vs Diffusion results into a compact, viewable 2-row-per-model table
+    comparing GAN vs Diffusion side-by-side with the F1 delta.
     """
     if "Threshold_Type" in gan_df.columns:
         return gan_df
-
-    g = gan_df.copy()
-    d = diff_df.copy() if diff_df is not None else pd.DataFrame()
-
-    if "ROC_AUC" in g.columns and "ROC-AUC" not in g.columns:
-        g = g.rename(columns={"ROC_AUC": "ROC-AUC"})
-    if not d.empty and "ROC_AUC" in d.columns and "ROC-AUC" not in d.columns:
-        d = d.rename(columns={"ROC_AUC": "ROC-AUC"})
-
-    g_map = {
-        "data_gan_corrected (t=0.50)": "GAN (t=0.50)",
-        "data_gan_corrected (Opt. Thresh)": "GAN (Opt. Thresh)",
-        "GAN (t=0.50)": "GAN (t=0.50)",
-        "GAN (Opt. Thresh)": "GAN (Opt. Thresh)"
-    }
-    d_map = {
-        "data_diffusion_corrected (t=0.50)": "Diffusion (t=0.50)",
-        "data_diffusion_corrected (Opt. Thresh)": "Diffusion (Opt. Thresh)",
-        "Diffusion (t=0.50)": "Diffusion (t=0.50)",
-        "Diffusion (Opt. Thresh)": "Diffusion (Opt. Thresh)"
-    }
-    g["Scenario"] = g["Scenario"].map(lambda s: g_map.get(s, s))
-    if not d.empty:
-        d["Scenario"] = d["Scenario"].map(lambda s: d_map.get(s, s))
-        combined = pd.concat([g, d], axis=0)
-    else:
-        combined = g
-
-    rows = []
-    for algo, grp in combined.groupby("Algorithm", sort=True):
-        g_def = grp[grp["Scenario"] == "GAN (t=0.50)"]
-        g_opt = grp[grp["Scenario"] == "GAN (Opt. Thresh)"]
-        d_def = grp[grp["Scenario"] == "Diffusion (t=0.50)"]
-        d_opt = grp[grp["Scenario"] == "Diffusion (Opt. Thresh)"]
-
-        if g_def.empty or d_def.empty:
-            continue
-
-        g_def = g_def.iloc[0]
-        g_opt = g_opt.iloc[0] if not g_opt.empty else g_def
-        d_def = d_def.iloc[0]
-        d_opt = d_opt.iloc[0] if not d_opt.empty else d_def
-
-        rows.append({
-            "Algorithm": algo,
-            "Threshold_Type": "Standard (t=0.50)",
-            "GAN_Threshold": round(float(g_def["Threshold"]), 2),
-            "GAN_F1": round(float(g_def["F1"]), 4),
-            "GAN_ROC_AUC": round(float(g_def["ROC-AUC"]), 4),
-            "GAN_Recall": round(float(g_def["Recall"]), 4),
-            "GAN_Precision": round(float(g_def["Precision"]), 4),
-            "GAN_Accuracy": round(float(g_def["Accuracy"]), 4) if "Accuracy" in g_def else np.nan,
-            "Diffusion_Threshold": round(float(d_def["Threshold"]), 2),
-            "Diffusion_F1": round(float(d_def["F1"]), 4),
-            "Diffusion_ROC_AUC": round(float(d_def["ROC-AUC"]), 4),
-            "Diffusion_Recall": round(float(d_def["Recall"]), 4),
-            "Diffusion_Precision": round(float(d_def["Precision"]), 4),
-            "Diffusion_Accuracy": round(float(d_def["Accuracy"]), 4) if "Accuracy" in d_def else np.nan,
-            "F1_Delta (GAN - Diff)": round(float(g_def["F1"]) - float(d_def["F1"]), 4)
-        })
-        rows.append({
-            "Algorithm": algo,
-            "Threshold_Type": "Optimal Threshold",
-            "GAN_Threshold": round(float(g_opt["Threshold"]), 2),
-            "GAN_F1": round(float(g_opt["F1"]), 4),
-            "GAN_ROC_AUC": round(float(g_opt["ROC-AUC"]), 4),
-            "GAN_Recall": round(float(g_opt["Recall"]), 4),
-            "GAN_Precision": round(float(g_opt["Precision"]), 4),
-            "GAN_Accuracy": round(float(g_opt["Accuracy"]), 4) if "Accuracy" in g_opt else np.nan,
-            "Diffusion_Threshold": round(float(d_opt["Threshold"]), 2),
-            "Diffusion_F1": round(float(d_opt["F1"]), 4),
-            "Diffusion_ROC_AUC": round(float(d_opt["ROC-AUC"]), 4),
-            "Diffusion_Recall": round(float(d_opt["Recall"]), 4),
-            "Diffusion_Precision": round(float(d_opt["Precision"]), 4),
-            "Diffusion_Accuracy": round(float(d_opt["Accuracy"]), 4) if "Accuracy" in d_opt else np.nan,
-            "F1_Delta (GAN - Diff)": round(float(g_opt["F1"]) - float(d_opt["F1"]), 4)
-        })
-
-    pivoted_df = pd.DataFrame(rows)
-    return pivoted_df
+    df = pd.concat([gan_df, diff_df], axis=0) if diff_df is not None else gan_df.copy()
+    df["Scenario"] = (df["Scenario"]
+                      .str.replace("data_gan_corrected", "GAN", regex=False)
+                      .str.replace("data_diffusion_corrected", "Diffusion", regex=False))
+    return _pivot_two_scenarios(df, "GAN", "Diffusion", "GAN", "Diffusion", "F1_Delta (GAN - Diff)")
 
 
 def format_size_scaling_table(size_df: pd.DataFrame, key_col: str = "Dataset_Size") -> pd.DataFrame:
@@ -488,7 +387,7 @@ def format_size_scaling_table(size_df: pd.DataFrame, key_col: str = "Dataset_Siz
     return pivoted_df
 
 
-def _evaluate_augmented_training(
+def evaluate_augmented_training(
     syn_df: pd.DataFrame,
     models_dict: Dict[str, Any],
     X_train_raw: pd.DataFrame,
@@ -565,7 +464,6 @@ def benchmark_dataset_sizes(
     X_test_raw: pd.DataFrame,
     y_test_raw: pd.Series,
     num_cols: List[str],
-    cat_cols: List[str],
     target_col: str = "default.payment.next.month",
     generator_name: str = "GAN"
 ) -> pd.DataFrame:
@@ -585,7 +483,7 @@ def benchmark_dataset_sizes(
         else:
             syn_df = pd.DataFrame(columns=list(X_train_raw.columns) + [target_col])
 
-        for rec in _evaluate_augmented_training(
+        for rec in evaluate_augmented_training(
             syn_df, models_dict, X_train_raw, y_train_raw, X_test_raw, y_test_raw,
             num_cols, generator_name, target_col
         ):
@@ -614,7 +512,7 @@ def benchmark_default_ratios(
     """
     records = []
     empty = pd.DataFrame(columns=list(X_train_raw.columns) + [target_col])
-    for rec in _evaluate_augmented_training(
+    for rec in evaluate_augmented_training(
         empty, models_dict, X_train_raw, y_train_raw, X_test_raw, y_test_raw,
         num_cols, generator_name, target_col
     ):
@@ -623,7 +521,7 @@ def benchmark_default_ratios(
     for r in ratios:
         print(f"\n[{generator_name} Ratio] {total_samples:,} synthetic rows at {r:.0%} defaults...")
         syn_df = generator_fn(total_samples=total_samples, default_ratio=r)
-        for rec in _evaluate_augmented_training(
+        for rec in evaluate_augmented_training(
             syn_df, models_dict, X_train_raw, y_train_raw, X_test_raw, y_test_raw,
             num_cols, generator_name, target_col
         ):

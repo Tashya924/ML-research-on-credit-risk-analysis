@@ -18,31 +18,30 @@ Usage:
 """
 
 import os
-import sys
 import argparse
 import time
-from typing import Dict, Any, List
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler
 from sklearn.base import clone
 
 from src.data import (
-    load_credit_data, prepare_leaky_pipeline, prepare_corrected_pipeline,
-    get_feature_lists, TARGET_COL
+    load_credit_data, prepare_leaky_pipeline, prepare_corrected_pipeline, TARGET_COL
 )
 from src.models import get_classifiers, get_deep_mlp, TabularTransformer, PyTorchModelWrapper
 from src.evaluation import (
     evaluate_predictions, optimize_threshold, generate_cv_threshold_plot,
     replicate_paper_table2, format_leaky_vs_corrected, format_gan_vs_diffusion,
-    format_size_scaling_table, benchmark_dataset_sizes, benchmark_default_ratios
+    format_size_scaling_table, benchmark_dataset_sizes, benchmark_default_ratios,
+    evaluate_augmented_training
 )
 from src.generator_gan import generate_ctgan_synthetic_data
 from src.generator_diffusion import generate_tabddpm_synthetic_data
-from src.visualizations import plot_scenario_comparisons, plot_paper_replication_match
+from src.visualizations import (
+    plot_scenario_comparisons, plot_paper_replication_match, compute_synthetic_fidelity_metrics,
+    plot_synthetic_feature_distributions, plot_synthetic_categorical_fidelity,
+    plot_synthetic_correlation_fidelity, plot_synthetic_pca_manifold
+)
 from src.explainability import (
     generate_shap_analysis, generate_lime_analysis,
     generate_permutation_importance_plot, score_applicant_risk
@@ -222,17 +221,6 @@ def main():
         total_samples=ctgan_sample_count,
         cache_path="data/ctgan_synthetic_120000.parquet"
     )
-    ctgan_combined = pd.concat([train_clean, ctgan_syn], axis=0).reset_index(drop=True)
-    X_train_gan = ctgan_combined.drop(columns=[TARGET_COL])
-    y_train_gan = ctgan_combined[TARGET_COL].astype(int)
-
-    preprocessor_gan = ColumnTransformer(
-        transformers=[('num', StandardScaler(), data_normal_corrected["num_cols"])],
-        remainder='passthrough'
-    )
-    X_train_gan_sc = preprocessor_gan.fit_transform(X_train_gan)
-    X_test_gan_sc = preprocessor_gan.transform(data_normal_corrected["X_test_raw"])
-    input_dim = X_train_gan_sc.shape[1]
 
     # 3.B Build Diffusion Training Data
     if os.path.exists(args.ddpm_data):
@@ -249,22 +237,24 @@ def main():
     if args.quick and len(ddpm_syn) > 2000:
         ddpm_syn = ddpm_syn.sample(n=2000, random_state=42)
 
-    ddpm_combined = pd.concat([train_clean, ddpm_syn], axis=0).reset_index(drop=True)
-    X_train_ddpm = ddpm_combined.drop(columns=[TARGET_COL])
-    y_train_ddpm = ddpm_combined[TARGET_COL].astype(int)
-
-    preprocessor_ddpm = ColumnTransformer(
-        transformers=[('num', StandardScaler(), data_normal_corrected["num_cols"])],
-        remainder='passthrough'
-    )
-    X_train_ddpm_sc = preprocessor_ddpm.fit_transform(X_train_ddpm)
-    X_test_ddpm_sc = preprocessor_ddpm.transform(data_normal_corrected["X_test_raw"])
+    # Synthetic data fidelity (real = training partition) -> synthetic_data_statistical_fidelity.csv
+    fidelity_df = compute_synthetic_fidelity_metrics(train_clean, ctgan_syn, ddpm_syn, list(train_clean.columns))
+    fidelity_df.to_csv(os.path.join(metrics_dir, "synthetic_data_statistical_fidelity.csv"), index=False)
+    features = [c for c in train_clean.columns if c != TARGET_COL]
+    plot_synthetic_feature_distributions(train_clean, ctgan_syn, ddpm_syn, ["LIMIT_BAL", "AGE", "BILL_AMT1", "PAY_AMT1", "BILL_AMT2", "PAY_AMT2"],
+                                         os.path.join(charts_dir, "synthetic_feature_distributions.png"))
+    plot_synthetic_categorical_fidelity(train_clean, ctgan_syn, ddpm_syn, ["SEX", "EDUCATION", "PAY_0", TARGET_COL],
+                                        os.path.join(charts_dir, "synthetic_categorical_fidelity.png"))
+    plot_synthetic_correlation_fidelity(train_clean, ctgan_syn, ddpm_syn, features,
+                                        os.path.join(charts_dir, "synthetic_correlation_fidelity.png"))
+    plot_synthetic_pca_manifold(train_clean, ctgan_syn, ddpm_syn, features,
+                                os.path.join(charts_dir, "synthetic_pca_manifold.png"))
 
     tf_epochs = 3 if args.quick else 15
     eval_models = {
         "Tabular Transformer (DL)": PyTorchModelWrapper(
             model_class=lambda dim: TabularTransformer(num_features=dim, d_model=64, nhead=4),
-            input_dim=input_dim, epochs=tf_epochs, batch_size=512
+            input_dim=len(features), epochs=tf_epochs, batch_size=512
         ),
         "Deep MLP Classifier": get_deep_mlp(random_state=42),
         "Gradient Boosting": models_dict.get("Gradient Boosting"),
@@ -276,58 +266,18 @@ def main():
     }
     eval_models = {k: v for k, v in eval_models.items() if v is not None}
 
-    gan_records = []
+    split_args = dict(
+        models_dict=eval_models,
+        X_train_raw=data_normal_corrected["X_train_raw"],
+        y_train_raw=data_normal_corrected["y_train_raw"],
+        X_test_raw=data_normal_corrected["X_test_raw"],
+        y_test_raw=data_normal_corrected["y_test_raw"],
+        num_cols=data_normal_corrected["num_cols"]
+    )
     print("\n  -> Evaluating models on GAN-augmented distribution...")
-    for name, model_tmpl in eval_models.items():
-        if hasattr(model_tmpl, "model_class"):
-            m = PyTorchModelWrapper(
-                model_class=lambda dim: TabularTransformer(num_features=dim, d_model=64, nhead=4),
-                input_dim=input_dim, epochs=tf_epochs, batch_size=512
-            )
-        else:
-            m = clone(model_tmpl)
-
-        m.fit(X_train_gan_sc, y_train_gan)
-        probs = m.predict_proba(X_test_gan_sc)[:, 1]
-
-        m_def = evaluate_predictions(data_normal_corrected["y_test_raw"], probs, threshold=0.50)
-        m_def["Algorithm"] = name
-        m_def["Scenario"] = "GAN (t=0.50)"
-        gan_records.append(m_def)
-
-        opt_t, _ = optimize_threshold(data_normal_corrected["y_test_raw"], probs)
-        m_opt = evaluate_predictions(data_normal_corrected["y_test_raw"], probs, threshold=opt_t)
-        m_opt["Algorithm"] = name
-        m_opt["Scenario"] = "GAN (Opt. Thresh)"
-        gan_records.append(m_opt)
-
-    diff_records = []
+    gan_df = pd.DataFrame(evaluate_augmented_training(ctgan_syn, generator_name="GAN", **split_args))
     print("\n  -> Evaluating models on Diffusion-augmented distribution...")
-    for name, model_tmpl in eval_models.items():
-        if hasattr(model_tmpl, "model_class"):
-            m = PyTorchModelWrapper(
-                model_class=lambda dim: TabularTransformer(num_features=dim, d_model=64, nhead=4),
-                input_dim=input_dim, epochs=tf_epochs, batch_size=512
-            )
-        else:
-            m = clone(model_tmpl)
-
-        m.fit(X_train_ddpm_sc, y_train_ddpm)
-        probs = m.predict_proba(X_test_ddpm_sc)[:, 1]
-
-        m_def = evaluate_predictions(data_normal_corrected["y_test_raw"], probs, threshold=0.50)
-        m_def["Algorithm"] = name
-        m_def["Scenario"] = "Diffusion (t=0.50)"
-        diff_records.append(m_def)
-
-        opt_t, _ = optimize_threshold(data_normal_corrected["y_test_raw"], probs)
-        m_opt = evaluate_predictions(data_normal_corrected["y_test_raw"], probs, threshold=opt_t)
-        m_opt["Algorithm"] = name
-        m_opt["Scenario"] = "Diffusion (Opt. Thresh)"
-        diff_records.append(m_opt)
-
-    gan_df = pd.DataFrame(gan_records)
-    diff_df = pd.DataFrame(diff_records)
+    diff_df = pd.DataFrame(evaluate_augmented_training(ddpm_syn, generator_name="Diffusion", **split_args))
 
     # Plot GAN vs Diffusion comparison using combined unpivoted df
     combined_gan_diff = pd.concat([gan_df, diff_df], axis=0)
@@ -389,7 +339,6 @@ def main():
             X_test_raw=data_normal_corrected["X_test_raw"],
             y_test_raw=data_normal_corrected["y_test_raw"],
             num_cols=data_normal_corrected["num_cols"],
-            cat_cols=data_normal_corrected["cat_cols"],
             generator_name="GAN"
         )
         plot_size_scaling(gan_size_raw_df, "CTGAN Dataset Size Scaling Effect on F1", os.path.join(charts_dir, "chart_gan_size_scaling.png"))
@@ -420,7 +369,6 @@ def main():
             X_test_raw=data_normal_corrected["X_test_raw"],
             y_test_raw=data_normal_corrected["y_test_raw"],
             num_cols=data_normal_corrected["num_cols"],
-            cat_cols=data_normal_corrected["cat_cols"],
             generator_name="Diffusion"
         )
         plot_size_scaling(diff_size_raw_df, "TabDDPM Diffusion Dataset Size Scaling Effect on F1", os.path.join(charts_dir, "chart_diffusion_size_scaling.png"))
@@ -460,7 +408,7 @@ def main():
         print(diff_ratio_df.head(6).to_string(index=False))
 
 
-    # 10. MODEL EXPLAINABILITY (XAI)
+    # MODEL EXPLAINABILITY (XAI)
     if not args.skip_xai and "Gradient Boosting" in fitted_models["data_normal_corrected"]:
         print("\n[*] Executing Model Explainability Suite (SHAP, LIME, Permutation Importance)...")
         gb_model = fitted_models["data_normal_corrected"]["Gradient Boosting"]
@@ -506,10 +454,10 @@ def main():
         print(f"\n[✓] Sample Applicant Risk Profiling Result: {risk_profile}")
 
     elapsed = time.time() - start_time
-    print(f"\n===============================================================================")
+    print("\n===============================================================================")
     print(f"  TRAINING & EVALUATION COMPLETE (Elapsed: {elapsed/60:.2f} mins)               ")
     print(f"  Summary directory generated at: '{summary_dir}/'                              ")
-    print(f"===============================================================================")
+    print("===============================================================================")
 
 
 if __name__ == "__main__":

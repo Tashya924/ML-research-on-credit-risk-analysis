@@ -31,12 +31,6 @@ try:
 except ImportError:
     HAS_LGBM = False
 
-try:
-    import catboost as cb
-    HAS_CATBOOST = True
-except ImportError:
-    HAS_CATBOOST = False
-
 
 def get_classifiers(random_state: int = 42) -> Dict[str, Any]:
     """

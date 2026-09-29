@@ -5,8 +5,7 @@ with user-selectable default / non-default ratios and domain bounds clipping.
 """
 
 import os
-from typing import Tuple, Optional, Dict, List
-import numpy as np
+from typing import Tuple, Optional, Dict
 import pandas as pd
 
 TARGET_COL = "default.payment.next.month"

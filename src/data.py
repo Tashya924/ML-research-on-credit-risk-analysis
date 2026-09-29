@@ -3,8 +3,7 @@ Data loading, feature specification, and data partitioning pipelines (Leaky vs C
 """
 
 import os
-from typing import Tuple, List, Dict, Any, Optional
-import numpy as np
+from typing import Tuple, List, Dict, Any
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -134,17 +133,3 @@ def prepare_corrected_pipeline(
         "num_cols": num_cols,
         "cat_indices": cat_indices
     }
-
-
-# =====================================================================
-# NAIVE NOTATION ALIASES & HELPERS FOR EVALUATORS
-# =====================================================================
-
-def prepare_data_normal_leaky(X: pd.DataFrame, y: pd.Series, test_size: float = 0.25, random_state: int = 42) -> Dict[str, Any]:
-    """Naive alias: Flawed oversampling before split (replicates paper leakage)."""
-    return prepare_leaky_pipeline(X, y, test_size=test_size, random_state=random_state)
-
-
-def prepare_data_normal_corrected(X: pd.DataFrame, y: pd.Series, test_size: float = 0.25, random_state: int = 42) -> Dict[str, Any]:
-    """Naive alias: Honest oversampling strictly on training split (no leakage)."""
-    return prepare_corrected_pipeline(X, y, test_size=test_size, random_state=random_state)

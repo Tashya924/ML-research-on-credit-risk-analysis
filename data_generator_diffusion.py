@@ -26,7 +26,6 @@ Usage:
 import os
 import sys
 import argparse
-import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from src.data import load_credit_data, TARGET_COL

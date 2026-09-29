@@ -4,7 +4,7 @@ and generative tabular synthesis evaluation.
 """
 
 import os
-from typing import List, Tuple
+from typing import List
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
@@ -39,7 +39,7 @@ def plot_scenario_comparisons(results_df: pd.DataFrame, output_dir: str = "summa
             .index
         )
         
-        ax = sns.barplot(
+        sns.barplot(
             data=results_df,
             x=metric_col,
             y="Algorithm",
@@ -125,7 +125,7 @@ def plot_paper_replication_match(
         "Replicated F1 (5-Fold CV)": "#98df8a"
     }
 
-    ax = sns.barplot(data=m_df, x="Algorithm", y="Score", hue="Metric", palette=palette)
+    sns.barplot(data=m_df, x="Algorithm", y="Score", hue="Metric", palette=palette)
     plt.ylim(0.0, 1.0)
     plt.xticks(rotation=25, ha='right', fontsize=10)
     plt.title("Paper Empirical Replication: Xu et al. (2024) vs. Replicated 5-Fold CV Baseline (Δ ≤ 0.01)", fontsize=13, fontweight='bold', pad=15)
@@ -137,29 +137,6 @@ def plot_paper_replication_match(
     plt.savefig(output_filepath, dpi=300)
     plt.close()
     print(f"[*] Saved paper replication match chart to '{output_filepath}'")
-
-
-def plot_generative_comparison(
-    gen_results_df: pd.DataFrame,
-    output_filepath: str = "summary/charts/generative_comparison.png"
-):
-    """
-    Bar plot comparing Generative models (CTGAN vs TabDDPM vs Baseline Corrected) on F1 and ROC-AUC.
-    """
-    os.makedirs(os.path.dirname(output_filepath), exist_ok=True)
-    plt.figure(figsize=(12, 6))
-    sns.set_theme(style="whitegrid")
-
-    if "Scenario" in gen_results_df.columns:
-        sns.barplot(data=gen_results_df, x="Algorithm", y="F1", hue="Scenario", palette="Spectral")
-        plt.title("Performance Comparison: Baseline vs. CTGAN vs. TabDDPM Augmentation", fontsize=13, fontweight='bold')
-        plt.ylabel("F1 Score (Pristine Test Set)", fontsize=11)
-        plt.xticks(rotation=25, ha='right')
-        plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left')
-        plt.tight_layout()
-        plt.savefig(output_filepath, dpi=300)
-        plt.close()
-        print(f"[*] Saved generative comparison chart to '{output_filepath}'")
 
 
 def compute_synthetic_fidelity_metrics(

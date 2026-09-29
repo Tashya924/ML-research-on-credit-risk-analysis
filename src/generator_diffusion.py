@@ -5,10 +5,8 @@ with user-selectable default / non-default ratios, All-Gaussian Bypass, and doma
 """
 
 import os
-import sys
 import subprocess
-from typing import Tuple, Optional, Dict
-import numpy as np
+from typing import Optional
 import pandas as pd
 
 TARGET_COL = "default.payment.next.month"
@@ -21,7 +19,6 @@ def generate_tabddpm_synthetic_data(
     num_non_defaults: Optional[int] = None,
     default_ratio: Optional[float] = None,
     total_samples: int = 20000,
-
     cache_dir: str = "data",
     n_iter: int = 2000,
     batch_size: int = 256,
@@ -49,13 +46,9 @@ def generate_tabddpm_synthetic_data(
         num_non_defaults = total_samples - num_defaults
     elif num_defaults is not None and num_non_defaults is not None:
         total_samples = num_defaults + num_non_defaults
-    elif total_samples is not None:
+    else:
         num_defaults = int(total_samples * 0.5)
         num_non_defaults = total_samples - num_defaults
-    else:
-        num_defaults = 10000
-        num_non_defaults = 10000
-        total_samples = 20000
 
     os.makedirs(cache_dir, exist_ok=True)
     temp_train_path = os.path.join(cache_dir, "_train_for_ddpm.csv")
@@ -154,16 +147,14 @@ print('TabDDPM synthetic data generated successfully.')
         "--python", "3.10",
         "python", script_path
     ]
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True)
+    finally:
+        for tmp in (script_path, temp_train_path):
+            if os.path.exists(tmp):
+                os.remove(tmp)
     print(res.stdout)
     if res.returncode != 0:
-        print("[!] Warning: Synthcity TabDDPM returned error:", res.stderr)
         raise RuntimeError(f"TabDDPM generation failed: {res.stderr}")
-
-    # Clean up temp files
-    if os.path.exists(script_path):
-        os.remove(script_path)
-    if os.path.exists(temp_train_path):
-        os.remove(temp_train_path)
 
     return pd.read_csv(output_csv)
