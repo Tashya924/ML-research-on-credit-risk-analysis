@@ -66,19 +66,19 @@ def generate_tabddpm_synthetic_data(
         print(f"[*] Found existing TabDDPM synthetic data at '{output_csv}'. Loading...")
         return pd.read_csv(output_csv)
 
-    # Check if a TabDDPM distribution pool exists that can satisfy the request
+    # Use a pre-generated TabDDPM pool only if it holds enough distinct rows per class;
+    # sampling with replacement would inflate "size" with duplicated rows.
     if os.path.exists(pool_path):
         pool_df = pd.read_parquet(pool_path)
         p1 = pool_df[pool_df[TARGET_COL] == 1]
         p0 = pool_df[pool_df[TARGET_COL] == 0]
-        if len(p1) > 0 and len(p0) > 0:
+        if len(p1) >= num_defaults and len(p0) >= num_non_defaults:
             print(f"[*] Sampling {num_defaults} defaults & {num_non_defaults} non-defaults from TabDDPM pool...")
-            replace_1 = num_defaults > len(p1)
-            replace_0 = num_non_defaults > len(p0)
-            s1 = p1.sample(n=num_defaults, replace=replace_1, random_state=random_state)
-            s0 = p0.sample(n=num_non_defaults, replace=replace_0, random_state=random_state)
+            s1 = p1.sample(n=num_defaults, random_state=random_state)
+            s0 = p0.sample(n=num_non_defaults, random_state=random_state)
             res = pd.concat([s1, s0], axis=0).sample(frac=1.0, random_state=random_state).reset_index(drop=True)
             return res
+        print(f"[!] TabDDPM pool too small for {num_defaults}/{num_non_defaults} rows; generating fresh samples.")
 
     train_data = pd.concat([X_train_raw, y_train_raw], axis=1)
     train_data.to_csv(temp_train_path, index=False)

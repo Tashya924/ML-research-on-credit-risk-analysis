@@ -434,12 +434,12 @@ def format_gan_vs_diffusion(gan_df: pd.DataFrame, diff_df: pd.DataFrame = None) 
     return pivoted_df
 
 
-def format_size_scaling_table(size_df: pd.DataFrame) -> pd.DataFrame:
+def format_size_scaling_table(size_df: pd.DataFrame, key_col: str = "Dataset_Size") -> pd.DataFrame:
     """
-    Pivots raw dataset size scaling records into a compact 2-row-per-model table:
+    Pivots raw scaling records into a compact 2-row-per-model table:
       Row 1: Standard (t=0.50)
       Row 2: Optimal Threshold
-    With columns for dataset sizes (e.g. F1_100k, F1_200k, ... AUC_100k, ... Thresh_100k, ...).
+    With one column per value of key_col (e.g. F1_100k, ... for sizes, F1_50% ... for default ratios).
     """
     if "Threshold_Type" in size_df.columns:
         return size_df
@@ -448,13 +448,17 @@ def format_size_scaling_table(size_df: pd.DataFrame) -> pd.DataFrame:
     if "ROC_AUC" in df.columns and "ROC-AUC" not in df.columns:
         df = df.rename(columns={"ROC_AUC": "ROC-AUC"})
 
-    sizes = sorted(df["Dataset_Size"].unique())
-    size_strs = [f"{sz//1000}k" if sz < 1000000 else "1M" for sz in sizes]
+    keys = list(dict.fromkeys(df[key_col]))
+    if key_col == "Dataset_Size":
+        keys = sorted(keys)
+        key_strs = [f"{k//1000}k" if k < 1000000 else "1M" for k in keys]
+    else:
+        key_strs = [str(k) for k in keys]
 
     rows = []
     for algo, grp in df.groupby("Algorithm", sort=True):
-        g_def = grp[grp["Scenario"].str.contains("t=0.50")].sort_values("Dataset_Size")
-        g_opt = grp[grp["Scenario"].str.contains("Opt. Thresh")].sort_values("Dataset_Size")
+        g_def = grp[grp["Scenario"].str.contains("t=0.50")]
+        g_opt = grp[grp["Scenario"].str.contains("Opt. Thresh")]
 
         r_def = {"Algorithm": algo, "Threshold_Type": "Standard (t=0.50)"}
         r_opt = {"Algorithm": algo, "Threshold_Type": "Optimal Threshold"}
@@ -471,17 +475,85 @@ def format_size_scaling_table(size_df: pd.DataFrame) -> pd.DataFrame:
         for col_name, prefix, decimals in metrics:
             if col_name not in grp.columns:
                 continue
-            for sz, sz_s in zip(sizes, size_strs):
-                m_def = g_def[g_def["Dataset_Size"] == sz]
-                m_opt = g_opt[g_opt["Dataset_Size"] == sz]
-                r_def[f"{prefix}_{sz_s}"] = round(float(m_def.iloc[0][col_name]), decimals) if not m_def.empty else None
-                r_opt[f"{prefix}_{sz_s}"] = round(float(m_opt.iloc[0][col_name]), decimals) if not m_opt.empty else None
+            for k, k_s in zip(keys, key_strs):
+                m_def = g_def[g_def[key_col] == k]
+                m_opt = g_opt[g_opt[key_col] == k]
+                r_def[f"{prefix}_{k_s}"] = round(float(m_def.iloc[0][col_name]), decimals) if not m_def.empty else None
+                r_opt[f"{prefix}_{k_s}"] = round(float(m_opt.iloc[0][col_name]), decimals) if not m_opt.empty else None
 
         rows.append(r_def)
         rows.append(r_opt)
 
     pivoted_df = pd.DataFrame(rows)
     return pivoted_df
+
+
+def _evaluate_augmented_training(
+    syn_df: pd.DataFrame,
+    models_dict: Dict[str, Any],
+    X_train_raw: pd.DataFrame,
+    y_train_raw: pd.Series,
+    X_test_raw: pd.DataFrame,
+    y_test_raw: pd.Series,
+    num_cols: List[str],
+    generator_name: str,
+    target_col: str = "default.payment.next.month"
+) -> List[Dict[str, Any]]:
+    """
+    Trains every model on real training rows + syn_df (which may be empty) and scores the
+    untouched real test set at t=0.50 and at the F1-optimal threshold.
+    """
+    import time
+    from sklearn.compose import ColumnTransformer
+    from sklearn.preprocessing import StandardScaler
+
+    train_clean = pd.concat([X_train_raw, y_train_raw], axis=1)
+    parts = [train_clean, syn_df] if len(syn_df) else [train_clean]
+    combined_df = pd.concat(parts, axis=0).reset_index(drop=True)
+    X_tr = combined_df.drop(columns=[target_col])
+    y_tr = combined_df[target_col].astype(int)
+
+    preprocessor = ColumnTransformer(
+        transformers=[('num', StandardScaler(), num_cols)],
+        remainder='passthrough'
+    )
+    X_tr_sc = preprocessor.fit_transform(X_tr)
+    X_te_sc = preprocessor.transform(X_test_raw)
+
+    print(f"[*] Training models on {len(X_tr):,} combined records ({y_tr.mean():.1%} defaults)...")
+    records = []
+    for algo_name, model_template in models_dict.items():
+        t_tr = time.time()
+        if hasattr(model_template, "model_class"):
+            # Re-instantiate PyTorch wrapper for the new input_dim
+            from src.models import PyTorchModelWrapper, TabularTransformer
+            m = PyTorchModelWrapper(
+                model_class=lambda dim: TabularTransformer(num_features=dim, d_model=64, nhead=4),
+                input_dim=X_tr_sc.shape[1], epochs=model_template.epochs, batch_size=model_template.batch_size
+            )
+        else:
+            m = clone(model_template)
+
+        m.fit(X_tr_sc, y_tr)
+        train_time = round(time.time() - t_tr, 2)
+        probs = m.predict_proba(X_te_sc)[:, 1]
+
+        opt_t, _ = optimize_threshold(y_test_raw, probs)
+        for label, t in [("t=0.50", 0.50), ("Opt. Thresh", opt_t)]:
+            m_eval = evaluate_predictions(y_test_raw, probs, threshold=t)
+            records.append({
+                "Total_Train_Rows": len(X_tr),
+                "Algorithm": algo_name,
+                "Scenario": f"{generator_name} ({label})",
+                "Threshold": round(t, 4),
+                "Accuracy": round(m_eval["Accuracy"], 4),
+                "Precision": round(m_eval["Precision"], 4),
+                "Recall": round(m_eval["Recall"], 4),
+                "F1": round(m_eval["F1"], 4),
+                "ROC-AUC": round(m_eval["ROC_AUC"], 4),
+                "Train_Time_Sec": train_time
+            })
+    return records
 
 
 def benchmark_dataset_sizes(
@@ -499,83 +571,62 @@ def benchmark_dataset_sizes(
 ) -> pd.DataFrame:
     """
     Trains models across scaling dataset sizes (e.g. 100k, 200k, 300k, 400k, 500k, 1M)
-    and logs evaluation metrics and training runtime.
+    and logs evaluation metrics and training runtime. Size 0 = real training data only.
     """
     import time
-    from sklearn.compose import ColumnTransformer
-    from sklearn.preprocessing import StandardScaler
-    
+
     records = []
-    train_clean = pd.concat([X_train_raw, y_train_raw], axis=1)
-
     for sz in sizes:
-        print(f"\n[{generator_name} Size Scaling] Generating {sz:,} synthetic samples...")
-        t_gen = time.time()
-        syn_df = generator_fn(total_samples=sz)
-        print(f"[*] Generation took {time.time() - t_gen:.2f}s | Synthetic shape: {syn_df.shape}")
+        if sz > 0:
+            print(f"\n[{generator_name} Size Scaling] Generating {sz:,} synthetic samples...")
+            t_gen = time.time()
+            syn_df = generator_fn(total_samples=sz)
+            print(f"[*] Generation took {time.time() - t_gen:.2f}s | Synthetic shape: {syn_df.shape}")
+        else:
+            syn_df = pd.DataFrame(columns=list(X_train_raw.columns) + [target_col])
 
-        combined_df = pd.concat([train_clean, syn_df], axis=0).reset_index(drop=True)
-        X_tr = combined_df.drop(columns=[target_col])
-        y_tr = combined_df[target_col].astype(int)
+        for rec in _evaluate_augmented_training(
+            syn_df, models_dict, X_train_raw, y_train_raw, X_test_raw, y_test_raw,
+            num_cols, generator_name, target_col
+        ):
+            records.append({"Dataset_Size": sz, **rec})
 
-        preprocessor = ColumnTransformer(
-            transformers=[('num', StandardScaler(), num_cols)],
-            remainder='passthrough'
-        )
-        X_tr_sc = preprocessor.fit_transform(X_tr)
-        X_te_sc = preprocessor.transform(X_test_raw)
+    return pd.DataFrame(records)
 
-        print(f"[*] Training models on {len(X_tr):,} combined records...")
-        for algo_name, model_template in models_dict.items():
-            t_tr = time.time()
-            # Clone model or handle PyTorch wrapper
-            if hasattr(model_template, "model_class"):
-                # Re-instantiate PyTorch wrapper for new input_dim if needed
-                from src.models import PyTorchModelWrapper, TabularTransformer
-                m = PyTorchModelWrapper(
-                    model_class=lambda dim: TabularTransformer(num_features=dim, d_model=64, nhead=4),
-                    input_dim=X_tr_sc.shape[1], epochs=model_template.epochs, batch_size=model_template.batch_size
-                )
-            else:
-                m = clone(model_template)
 
-            m.fit(X_tr_sc, y_tr)
-            train_time = round(time.time() - t_tr, 2)
-            probs = m.predict_proba(X_te_sc)[:, 1]
+def benchmark_default_ratios(
+    generator_fn: Any,
+    ratios: List[float],
+    total_samples: int,
+    models_dict: Dict[str, Any],
+    X_train_raw: pd.DataFrame,
+    y_train_raw: pd.Series,
+    X_test_raw: pd.DataFrame,
+    y_test_raw: pd.Series,
+    num_cols: List[str],
+    target_col: str = "default.payment.next.month",
+    generator_name: str = "Diffusion"
+) -> pd.DataFrame:
+    """
+    Adds a fixed number of synthetic rows with a varying default (risk) : non-default (no risk)
+    ratio to the real training data and evaluates on the untouched real test set.
+    A 'real_only' baseline (no synthetic rows) is evaluated first.
+    """
+    records = []
+    empty = pd.DataFrame(columns=list(X_train_raw.columns) + [target_col])
+    for rec in _evaluate_augmented_training(
+        empty, models_dict, X_train_raw, y_train_raw, X_test_raw, y_test_raw,
+        num_cols, generator_name, target_col
+    ):
+        records.append({"Default_Ratio": "real_only", **rec})
 
-            # Standard threshold
-            m_def = evaluate_predictions(y_test_raw, probs, threshold=0.50)
-            records.append({
-                "Dataset_Size": sz,
-                "Total_Train_Rows": len(X_tr),
-                "Algorithm": algo_name,
-                "Scenario": f"{generator_name} (t=0.50)",
-                "Threshold": 0.50,
-                "Accuracy": round(m_def["Accuracy"], 4),
-                "Precision": round(m_def["Precision"], 4),
-                "Recall": round(m_def["Recall"], 4),
-                "F1": round(m_def["F1"], 4),
-                "ROC-AUC": round(m_def["ROC_AUC"], 4),
-                "Train_Time_Sec": train_time
-            })
+    for r in ratios:
+        print(f"\n[{generator_name} Ratio] {total_samples:,} synthetic rows at {r:.0%} defaults...")
+        syn_df = generator_fn(total_samples=total_samples, default_ratio=r)
+        for rec in _evaluate_augmented_training(
+            syn_df, models_dict, X_train_raw, y_train_raw, X_test_raw, y_test_raw,
+            num_cols, generator_name, target_col
+        ):
+            records.append({"Default_Ratio": f"{r:.0%}", **rec})
 
-            # Optimal threshold
-            opt_t, _ = optimize_threshold(y_test_raw, probs)
-            m_opt = evaluate_predictions(y_test_raw, probs, threshold=opt_t)
-            records.append({
-                "Dataset_Size": sz,
-                "Total_Train_Rows": len(X_tr),
-                "Algorithm": algo_name,
-                "Scenario": f"{generator_name} (Opt. Thresh)",
-                "Threshold": round(opt_t, 4),
-                "Accuracy": round(m_opt["Accuracy"], 4),
-                "Precision": round(m_opt["Precision"], 4),
-                "Recall": round(m_opt["Recall"], 4),
-                "F1": round(m_opt["F1"], 4),
-                "ROC-AUC": round(m_opt["ROC_AUC"], 4),
-                "Train_Time_Sec": train_time
-            })
-
-    out_df = pd.DataFrame(records)
-    return out_df
-
+    return pd.DataFrame(records)

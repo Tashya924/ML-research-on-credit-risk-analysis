@@ -5,6 +5,9 @@ Model definitions for Classical ML, Ensembles, Deep MLP, and PyTorch TabularTran
 from typing import Dict, Any, Optional
 import numpy as np
 import pandas as pd
+# xgboost must be imported before torch: on macOS both bundle an OpenMP runtime and the
+# reverse order segfaults the first XGBoost fit after a torch model has trained.
+import xgboost as xgb
 import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
@@ -21,7 +24,6 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
 from sklearn.neural_network import MLPClassifier
 from sklearn.calibration import CalibratedClassifierCV
-import xgboost as xgb
 
 try:
     import lightgbm as lgb
@@ -152,8 +154,10 @@ class PyTorchModelWrapper:
         epochs: int = 15,
         lr: float = 0.001,
         batch_size: int = 512,
-        device: Optional[str] = None
+        device: Optional[str] = None,
+        random_state: int = 42
     ):
+        torch.manual_seed(random_state)
         self.model_class = model_class
         self.input_dim = input_dim
         self.epochs = epochs

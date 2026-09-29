@@ -138,7 +138,9 @@ def main():
         y_train_raw=y_train,
         num_defaults=n_def,
         num_non_defaults=n_non_def,
-        cache_dir="data",
+        # Separate cache per mode: leaky models are trained on the test rows and must never
+        # be reloaded by the corrected pipeline (which uses data/).
+        cache_dir="data" if mode == "corrected" else "data/diffusion_leaky",
         n_iter=iterations,
         batch_size=batch_size
     )

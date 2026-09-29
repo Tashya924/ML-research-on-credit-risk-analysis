@@ -58,7 +58,9 @@ def generate_ctgan_synthetic_data(
     elif num_defaults is not None and num_non_defaults is not None:
         total_samples = num_defaults + num_non_defaults
 
-    model_cache_path = os.path.join(os.path.dirname(cache_path) if cache_path else "data", "ctgan_model.pkl")
+    # No cache_path (e.g. leaky mode) means no model cache either, so a model fitted on the
+    # full dataset can never be reloaded by the zero-leakage pipeline.
+    model_cache_path = os.path.join(os.path.dirname(cache_path), "ctgan_model.pkl") if cache_path else None
 
     # 1. Check if raw parquet cache satisfies requested total_samples
     if cache_path and os.path.exists(cache_path):
@@ -83,7 +85,7 @@ def generate_ctgan_synthetic_data(
     # 2. Check if fitted CTGAN model is cached
     import pickle
     ctgan = None
-    if os.path.exists(model_cache_path):
+    if model_cache_path and os.path.exists(model_cache_path):
         try:
             print(f"[*] Loading fitted CTGAN model from '{model_cache_path}'...")
             with open(model_cache_path, "rb") as f:
@@ -100,12 +102,13 @@ def generate_ctgan_synthetic_data(
 
         ctgan = CTGAN(epochs=epochs, batch_size=batch_size, verbose=False)
         ctgan.fit(train_df, discrete_cols)
-        try:
-            with open(model_cache_path, "wb") as f:
-                pickle.dump(ctgan, f)
-            print(f"[✓] Saved fitted CTGAN model to '{model_cache_path}'.")
-        except Exception as e:
-            print(f"[!] Note: Could not cache CTGAN model: {e}")
+        if model_cache_path:
+            try:
+                with open(model_cache_path, "wb") as f:
+                    pickle.dump(ctgan, f)
+                print(f"[✓] Saved fitted CTGAN model to '{model_cache_path}'.")
+            except Exception as e:
+                print(f"[!] Note: Could not cache CTGAN model: {e}")
 
     bounds = {col: (X_train_raw[col].min(), X_train_raw[col].max()) for col in X_train_raw.columns}
 

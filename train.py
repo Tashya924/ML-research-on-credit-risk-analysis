@@ -8,6 +8,7 @@ Generates the 5 standardized research CSV benchmark files in summary/metrics/:
   3. GAN_vs_Diffusion.csv     (4 results per model: GAN vs Diffusion x Normal vs Opt Threshold)
   4. Gan_size.csv             (Dataset size scaling: 100k, 200k, 300k, 400k, 500k, 1M)
   5. Diffusion_size.csv       (Dataset size scaling on Diffusion model data)
+  6. Diffusion_ratio.csv      (Default : non-default ratio of the synthetic rows)
 
 Usage:
     python train.py                     # Full research training & size evaluation
@@ -37,7 +38,7 @@ from src.models import get_classifiers, get_deep_mlp, TabularTransformer, PyTorc
 from src.evaluation import (
     evaluate_predictions, optimize_threshold, generate_cv_threshold_plot,
     replicate_paper_table2, format_leaky_vs_corrected, format_gan_vs_diffusion,
-    format_size_scaling_table, benchmark_dataset_sizes
+    format_size_scaling_table, benchmark_dataset_sizes, benchmark_default_ratios
 )
 from src.generator_gan import generate_ctgan_synthetic_data
 from src.generator_diffusion import generate_tabddpm_synthetic_data
@@ -60,6 +61,10 @@ def parse_args():
                         help="List of GAN dataset sizes (default: 100k 200k 300k 400k 500k 1000k)")
     parser.add_argument("--diffusion-sizes", nargs="+", type=int, default=None,
                         help="List of Diffusion dataset sizes (default: 100k 200k 300k 400k 500k 1000k)")
+    parser.add_argument("--diffusion-ratios", nargs="+", type=float, default=None,
+                        help="Default ratios of the synthetic rows (default: 0.1 0.22 0.3 0.5 0.7 0.9)")
+    parser.add_argument("--ratio-samples", type=int, default=60000,
+                        help="Synthetic rows added per ratio in the ratio experiment (default: 60,000)")
     parser.add_argument("--ddpm-data", type=str, default="data/synthetic_tabddpm.csv", help="Path to TabDDPM data")
     return parser.parse_args()
 
@@ -141,6 +146,7 @@ def main():
         print(f"\n--- Scenario: {scenario_name} ---")
         for algo_name, model in models_dict.items():
             print(f"  -> Training {algo_name}...")
+            model = clone(model)
             model.fit(X_tr, y_tr)
             fitted_models[scenario_name][algo_name] = model
 
@@ -229,14 +235,16 @@ def main():
     input_dim = X_train_gan_sc.shape[1]
 
     # 3.B Build Diffusion Training Data
-    ddpm_file = args.ddpm_data if os.path.exists(args.ddpm_data) else "data/synthetic_tabddpm.csv"
-    if not os.path.exists(ddpm_file) and os.path.exists("data/synthetic_tabddpm_pool.parquet"):
-        ddpm_file = "data/synthetic_tabddpm_pool.parquet"
-    
-    if ddpm_file.endswith(".parquet"):
-        ddpm_syn = pd.read_parquet(ddpm_file)
+    if os.path.exists(args.ddpm_data):
+        ddpm_syn = pd.read_parquet(args.ddpm_data) if args.ddpm_data.endswith(".parquet") else pd.read_csv(args.ddpm_data)
     else:
-        ddpm_syn = pd.read_csv(ddpm_file)
+        # No pre-generated file: train/sample TabDDPM on the training partition only (3,000 + 3,000 rows)
+        ddpm_syn = generate_tabddpm_synthetic_data(
+            X_train_raw=data_normal_corrected["X_train_raw"],
+            y_train_raw=data_normal_corrected["y_train_raw"],
+            num_defaults=3000, num_non_defaults=3000,
+            cache_dir="data"
+        )
 
     if args.quick and len(ddpm_syn) > 2000:
         ddpm_syn = ddpm_syn.sample(n=2000, random_state=42)
@@ -394,7 +402,7 @@ def main():
         # 5. Diffusion Size Scaling
         diffusion_sizes = args.diffusion_sizes
         if diffusion_sizes is None:
-            diffusion_sizes = [2000, 5000] if args.quick else [100000, 200000, 300000, 400000, 500000, 1000000]
+            diffusion_sizes = [0, 2000, 5000] if args.quick else [0, 100000, 200000, 300000, 400000, 500000, 1000000]
 
         print(f"\n[*] Experiment 5: Benchmarking Diffusion across sizes: {diffusion_sizes}...")
         diff_size_fn = lambda total_samples: generate_tabddpm_synthetic_data(
@@ -421,6 +429,35 @@ def main():
         diff_size_df.to_csv(diff_size_path, index=False)
         print(f"\n[✓] Saved Experiment 5 (Diffusion_size.csv - 2 rows per model) to '{diff_size_path}':")
         print(diff_size_df.head(6).to_string(index=False))
+
+        # 6. Diffusion default-ratio test (fixed number of synthetic rows, varying risk : no-risk mix)
+        diffusion_ratios = args.diffusion_ratios or [0.1, 0.22, 0.3, 0.5, 0.7, 0.9]
+        ratio_samples = 5000 if args.quick else args.ratio_samples
+        print(f"\n[*] Experiment 6: Benchmarking Diffusion default ratios {diffusion_ratios} at {ratio_samples:,} rows...")
+        diff_ratio_fn = lambda total_samples, default_ratio: generate_tabddpm_synthetic_data(
+            X_train_raw=data_normal_corrected["X_train_raw"],
+            y_train_raw=data_normal_corrected["y_train_raw"],
+            total_samples=total_samples,
+            default_ratio=default_ratio,
+            cache_dir="data"
+        )
+        diff_ratio_raw_df = benchmark_default_ratios(
+            generator_fn=diff_ratio_fn,
+            ratios=diffusion_ratios,
+            total_samples=ratio_samples,
+            models_dict=size_models,
+            X_train_raw=data_normal_corrected["X_train_raw"],
+            y_train_raw=data_normal_corrected["y_train_raw"],
+            X_test_raw=data_normal_corrected["X_test_raw"],
+            y_test_raw=data_normal_corrected["y_test_raw"],
+            num_cols=data_normal_corrected["num_cols"],
+            generator_name="Diffusion"
+        )
+        diff_ratio_df = format_size_scaling_table(diff_ratio_raw_df, key_col="Default_Ratio")
+        diff_ratio_path = os.path.join(metrics_dir, "Diffusion_ratio.csv")
+        diff_ratio_df.to_csv(diff_ratio_path, index=False)
+        print(f"\n[✓] Saved Experiment 6 (Diffusion_ratio.csv - 2 rows per model) to '{diff_ratio_path}':")
+        print(diff_ratio_df.head(6).to_string(index=False))
 
 
     # 10. MODEL EXPLAINABILITY (XAI)
