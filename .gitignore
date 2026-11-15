@@ -1,40 +1,18 @@
-# Python & Bytecode
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
 .DS_Store
-
-# Virtual Environments
 .venv/
-env/
 venv/
-ENV/
-
-# Jupyter Notebook Checkpoints
+env/
 .ipynb_checkpoints/
-
-# Model Weights & Checkpoints
-models/
 *.joblib
 *.pkl
-*.pth
 *.pt
-*.bin
-*.onnx
-
-# Generated Charts & Plots
-charts/
-*.png
-!architecture_pipeline.png
-summary/charts/
-summary/threshold_plots/
-summary/xai/
-
-# Data Artifacts & Synthetic Datasets
-data/
+*.pth
 *.parquet
-*.csv
-!UCI_Credit_Card.csv
-!summary/metrics/*.csv
-workspace/
+*.csv.gz
+archive/*.tar.gz
+archive/out-of-scope-2026-11-09/
+results/check_*/
+results/my_check/
+colab/*.zip

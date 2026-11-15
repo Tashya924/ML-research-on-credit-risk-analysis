@@ -1,0 +1,25 @@
+{
+  "status": "complete",
+  "metric_values": 2640,
+  "validation_scores": 55,
+  "summary_cells": 168,
+  "data_sha256": "a0f0ab49d6326671d6cd83be5c88dcf18007025fe9a53ecd699119c871176ca1",
+  "input_hashes": {
+    "run.json": "9df68b181c79520ed15d8718eeecd09e8eac8d112556dc0c30d96f5910b17ef6",
+    "metrics.csv": "0d99ce35adf597b21e52476fcddf09d23cce07cc84388a8cdf1f3fb338d789d6",
+    "verification.json": "5f35af0f4a7d6685d5199c4f1c7f61a0b5d19c7ff617bccf9489b6ccf4ce0252"
+  },
+  "derived_hashes": {
+    "metric_evidence.csv": "57d76f007f08d5d09f09ced276b9ad3301e48dda312ffc9aaed99399e5d18b98",
+    "metadata_evidence.csv": "17f77d92df32d76d04fbd90762007aa27f3f8c4c5464a074d588a5143199086a",
+    "selection_evidence.csv": "33b1428f68e5014d4cf07422b9cc121b480d5adf5923a92615b27672f0417c43",
+    "split_evidence.csv": "cefc7fe2eb2d9cfe69a714dd8b55220f383440476849449f6664340b17dc9d2a",
+    "summary_evidence.csv": "926adb0e5388d44073c32901385e20197a082c5b187a555e22b0ba26134b751d"
+  },
+  "analysis_source_sha256": {
+    "/Users/anirudh/Desktop/ML-research-on-credit-risk-analysis/creditrisk/evidence.py": "e5c4fd26505151211b4bac0828507d09ea006bb2684c48d91029438b3dee00ba",
+    "creditrisk/verify.py": "aaed63e9e227288921807ffaaa64d137c25573a1b40f48ccb9d6a4f623c56244",
+    "creditrisk/report.py": "51210d6a4cd7d7868ebb4312479eda9b4e63b8b01d21776ddaace761142ffa93"
+  },
+  "note": "NPZ arrays are the full-precision source. CSV files are readable derivatives. Scores reconstructed from counts and ranking-curve contributions."
+}

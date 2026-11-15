@@ -1,0 +1,24 @@
+{
+  "method": "agss_diffusion_transformer",
+  "requested_synthetic_rows": 10056,
+  "selected_epoch": 150,
+  "validation_selection_ap": 0.538690027512328,
+  "backbone": "transformer",
+  "training_rows": 3855,
+  "density": {
+    "eps": 3.1519842600670906,
+    "min_samples": 12,
+    "distance_quantile": 0.95,
+    "pca_dimensions": 13,
+    "cluster_counts": [
+      3855
+    ],
+    "noise_count": 119,
+    "noise_fraction": 0.029944640161046806,
+    "cluster_probabilities": [
+      1.0
+    ]
+  },
+  "synthetic_rows": 10056,
+  "generation_seconds": 150.67471454199404
+}

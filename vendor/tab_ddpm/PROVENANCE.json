@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/yandex-research/tab-ddpm",
+  "commit": "b476257dd460b778ba09eb97f7a51d6490fa17f8",
+  "license": "MIT",
+  "files_unmodified_sha256": {
+    "utils.py": "722a19ed84a65745472d95d8c563818f0971f8e946ee5b81d4a7a92670c472e1",
+    "gaussian_multinomial_diffsuion.py": "41f290c0c3bb1fbdbf5f0cf90cf29df0995aa058a846f57ed50a3667093d1486",
+    "modules.py": "c1636d738bad90b571def06ee2b5bcb03e22f7577ab0d2d07ff806fb8b0023b4"
+  }
+}

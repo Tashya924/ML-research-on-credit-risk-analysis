@@ -1,0 +1,10 @@
+{"event": "generation_start", "model": null, "monotonic_seconds": 2675072.955444666, "utc": "2026-11-09T06:32:03.777799+00:00"}
+{"event": "generation_end", "model": null, "monotonic_seconds": 2675116.327504416, "utc": "2026-11-09T06:32:47.148465+00:00"}
+{"event": "fit_start", "model": "logistic_regression", "monotonic_seconds": 2675118.616972041, "utc": "2026-11-09T06:32:49.438041+00:00"}
+{"event": "fit_end", "model": "logistic_regression", "monotonic_seconds": 2675118.953202333, "utc": "2026-11-09T06:32:49.774128+00:00"}
+{"event": "fit_start", "model": "hist_gradient_boosting", "monotonic_seconds": 2675118.966131166, "utc": "2026-11-09T06:32:49.787030+00:00"}
+{"event": "fit_end", "model": "hist_gradient_boosting", "monotonic_seconds": 2675120.736728541, "utc": "2026-11-09T06:32:51.557681+00:00"}
+{"event": "fit_start", "model": "random_forest", "monotonic_seconds": 2675120.845320125, "utc": "2026-11-09T06:32:51.666104+00:00"}
+{"event": "fit_end", "model": "random_forest", "monotonic_seconds": 2675123.164199791, "utc": "2026-11-09T06:32:53.984979+00:00"}
+{"event": "fit_start", "model": "extra_trees", "monotonic_seconds": 2675123.631700416, "utc": "2026-11-09T06:32:54.452446+00:00"}
+{"event": "fit_end", "model": "extra_trees", "monotonic_seconds": 2675124.860322, "utc": "2026-11-09T06:32:55.681190+00:00"}

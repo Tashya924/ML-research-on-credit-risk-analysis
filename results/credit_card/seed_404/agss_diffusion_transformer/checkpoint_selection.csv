@@ -1,0 +1,3 @@
+epoch,validation_ap,predictions_file,status
+50,0.5341325936000396,checkpoint_50_validation.npz,ok
+150,0.538690027512328,checkpoint_150_validation.npz,ok

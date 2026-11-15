@@ -1,0 +1,20 @@
+{
+  "method": "agss_interpolation",
+  "requested_synthetic_rows": 10179,
+  "density": {
+    "eps": 3.1964686937512914,
+    "min_samples": 12,
+    "distance_quantile": 0.95,
+    "pca_dimensions": 13,
+    "cluster_counts": [
+      3784
+    ],
+    "noise_count": 127,
+    "noise_fraction": 0.03247251342367681,
+    "cluster_probabilities": [
+      1.0
+    ]
+  },
+  "synthetic_rows": 10179,
+  "generation_seconds": 0.13403579220175743
+}

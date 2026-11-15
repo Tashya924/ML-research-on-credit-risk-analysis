@@ -1,0 +1,24 @@
+{
+  "method": "agss_diffusion_mlp",
+  "requested_synthetic_rows": 10048,
+  "selected_epoch": 50,
+  "validation_selection_ap": 0.5302289215876521,
+  "backbone": "mlp",
+  "training_rows": 3840,
+  "density": {
+    "eps": 3.0510480942680487,
+    "min_samples": 12,
+    "distance_quantile": 0.95,
+    "pca_dimensions": 13,
+    "cluster_counts": [
+      3840
+    ],
+    "noise_count": 134,
+    "noise_fraction": 0.033719174635128336,
+    "cluster_probabilities": [
+      1.0
+    ]
+  },
+  "synthetic_rows": 10048,
+  "generation_seconds": 46.25118599971756
+}

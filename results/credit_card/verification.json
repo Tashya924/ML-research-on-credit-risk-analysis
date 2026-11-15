@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "metric_records_verified": 240,
+  "serialized_classifiers_verified": 120,
+  "synthetic_rows_verified": 251670,
+  "failed_methods": 0,
+  "validation_scores_verified": 55,
+  "training_epochs_verified": 3000,
+  "training_batches_verified": 23400,
+  "timing_intervals_verified": 150,
+  "independently_checked_metric_rows": 240,
+  "real_training_preprocessor_verified": true,
+  "source_snapshot_verified": true,
+  "dataset_and_split_hashes_verified": true,
+  "duplicate_group_isolation_verified": true
+}

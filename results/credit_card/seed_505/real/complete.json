@@ -1,0 +1,70 @@
+{
+  "status": "complete",
+  "artifacts": [
+    {
+      "path": "classifier_parameters.json",
+      "bytes": 1979,
+      "sha256": "406d4df16b9475d5652b10b6dc3f3376e74db1d724393aca9293429fab7b05d4"
+    },
+    {
+      "path": "events.jsonl",
+      "bytes": 1328,
+      "sha256": "43d53c6e9406c87d4e0ea2fb155daa45423ec7d68a2cff616d09f7b138fcc850"
+    },
+    {
+      "path": "extra_trees.joblib",
+      "bytes": 8070308,
+      "sha256": "87938bc376f23b159d31d89d8b247ebaec0a857166952c06a381732c7799acea"
+    },
+    {
+      "path": "extra_trees_predictions.npz",
+      "bytes": 94437,
+      "sha256": "c42b3efbd06177fd957468d2e6321c9c8c9a897f47d7638e3a69523301c60b38"
+    },
+    {
+      "path": "hist_gradient_boosting.joblib",
+      "bytes": 168614,
+      "sha256": "90bcc3cf4ce3145a4886a80600a910b9cc65e99d97a8191b3fda0fba3cfd13dc"
+    },
+    {
+      "path": "hist_gradient_boosting_predictions.npz",
+      "bytes": 93979,
+      "sha256": "14500a64e71284096d4445dc03e341f5ea89ad70a0d41a4a2e211672acc07b6b"
+    },
+    {
+      "path": "logistic_regression.joblib",
+      "bytes": 1312,
+      "sha256": "2faa2ed59d15c11df33e7910da381662ae5fdc55510d1e4ac45afca9c4f53c4f"
+    },
+    {
+      "path": "logistic_regression_predictions.npz",
+      "bytes": 94388,
+      "sha256": "71388cf206958ff0437c1c00aa043c96aa15e9d4230b14ac45608944b8d4a39e"
+    },
+    {
+      "path": "method.json",
+      "bytes": 128,
+      "sha256": "17bfe5f2011fa842e93a55215b428e4a7196885abf489ac224a456cdf32bd2d4"
+    },
+    {
+      "path": "metrics.csv",
+      "bytes": 2262,
+      "sha256": "49773d5241671210b589e604f0e61b6244df239131b0b0d09b2e355ce0a720df"
+    },
+    {
+      "path": "random_forest.joblib",
+      "bytes": 8372156,
+      "sha256": "4fa462bc0049b1d969ed0962a678900b87cda4b3b4b8bd11710902ee3d4e28bd"
+    },
+    {
+      "path": "random_forest_predictions.npz",
+      "bytes": 94528,
+      "sha256": "1d0165b95f2f69389c393276eebfee0357522178b4d9db1c2d444b400f3a6ec6"
+    },
+    {
+      "path": "training.csv.gz",
+      "bytes": 573228,
+      "sha256": "1ea783ac459ada6c1dab5e52f82a76635b4788b1aee6d0788d7b4ac78764f552"
+    }
+  ]
+}

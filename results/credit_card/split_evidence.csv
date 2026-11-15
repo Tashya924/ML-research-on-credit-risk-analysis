@@ -1,0 +1,16 @@
+seed,partition,rows,defaults,nondefaults,default_share,row_indices_file,row_indices_key
+101,train,17996,3974,14022,0.22082685041120248,results/credit_card/seed_101/split_indices.npz,train
+101,validation,5998,1350,4648,0.22507502500833612,results/credit_card/seed_101/split_indices.npz,validation
+101,test,6006,1312,4694,0.21844821844821846,results/credit_card/seed_101/split_indices.npz,test
+202,train,18002,3969,14033,0.2204755027219198,results/credit_card/seed_202/split_indices.npz,train
+202,validation,5999,1340,4659,0.22337056176029338,results/credit_card/seed_202/split_indices.npz,validation
+202,test,5999,1327,4672,0.2212035339223204,results/credit_card/seed_202/split_indices.npz,test
+303,train,18001,3911,14090,0.21726570746069662,results/credit_card/seed_303/split_indices.npz,train
+303,validation,6001,1374,4627,0.22896183969338443,results/credit_card/seed_303/split_indices.npz,validation
+303,test,5998,1351,4647,0.22524174724908302,results/credit_card/seed_303/split_indices.npz,test
+404,train,18004,3974,14030,0.22072872694956677,results/credit_card/seed_404/split_indices.npz,train
+404,validation,5996,1366,4630,0.22781854569713142,results/credit_card/seed_404/split_indices.npz,validation
+404,test,6000,1296,4704,0.216,results/credit_card/seed_404/split_indices.npz,test
+505,train,18001,4007,13994,0.22259874451419365,results/credit_card/seed_505/split_indices.npz,train
+505,validation,5998,1295,4703,0.21590530176725575,results/credit_card/seed_505/split_indices.npz,validation
+505,test,6001,1334,4667,0.22229628395267456,results/credit_card/seed_505/split_indices.npz,test

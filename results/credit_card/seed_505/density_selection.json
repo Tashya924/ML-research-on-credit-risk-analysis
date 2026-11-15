@@ -1,0 +1,72 @@
+{
+  "candidates": [
+    {
+      "quantile": 0.65,
+      "validation_ap": 0.487708694823403,
+      "predictions_file": "density_q0.65_validation.npz",
+      "status": "ok",
+      "eps": 1.3640195394666574,
+      "min_samples": 12,
+      "distance_quantile": 0.65,
+      "pca_dimensions": 14,
+      "cluster_counts": [
+        3152
+      ],
+      "noise_count": 855,
+      "noise_fraction": 0.21337659096580983,
+      "cluster_probabilities": [
+        1.0
+      ]
+    },
+    {
+      "quantile": 0.8,
+      "validation_ap": 0.48517835440645335,
+      "predictions_file": "density_q0.80_validation.npz",
+      "status": "ok",
+      "eps": 1.710298255046312,
+      "min_samples": 12,
+      "distance_quantile": 0.8,
+      "pca_dimensions": 14,
+      "cluster_counts": [
+        3469
+      ],
+      "noise_count": 538,
+      "noise_fraction": 0.13426503618667332,
+      "cluster_probabilities": [
+        1.0
+      ]
+    },
+    {
+      "quantile": 0.95,
+      "validation_ap": 0.4838214670127251,
+      "predictions_file": "density_q0.95_validation.npz",
+      "status": "ok",
+      "eps": 3.1806662386556273,
+      "min_samples": 12,
+      "distance_quantile": 0.95,
+      "pca_dimensions": 14,
+      "cluster_counts": [
+        3874
+      ],
+      "noise_count": 133,
+      "noise_fraction": 0.03319191415023708,
+      "cluster_probabilities": [
+        1.0
+      ]
+    }
+  ],
+  "selected": {
+    "eps": 1.3640195394666574,
+    "min_samples": 12,
+    "distance_quantile": 0.65,
+    "pca_dimensions": 14,
+    "cluster_counts": [
+      3152
+    ],
+    "noise_count": 855,
+    "noise_fraction": 0.21337659096580983,
+    "cluster_probabilities": [
+      1.0
+    ]
+  }
+}

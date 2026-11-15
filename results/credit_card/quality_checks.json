@@ -1,0 +1,15 @@
+{
+  "tests_passed": 15,
+  "ruff_lint": "passed",
+  "ruff_format": "passed",
+  "git_diff_whitespace": "passed",
+  "fitting_sources_unchanged_during_run": true,
+  "preflight": {
+    "model_replays": 24,
+    "metric_rows": 48,
+    "validation_scores": 11,
+    "all_configured_checkpoints_succeeded": true
+  },
+  "local_document_links": "passed",
+  "summary_entries_independently_recomputed": 168
+}
