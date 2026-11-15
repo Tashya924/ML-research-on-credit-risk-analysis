@@ -1,0 +1,6 @@
+{
+  "status": "complete",
+  "model_fits": 120,
+  "comparison_rows": 240,
+  "report": "docs/REPORT.md"
+}

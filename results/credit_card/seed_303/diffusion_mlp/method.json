@@ -1,0 +1,11 @@
+{
+  "method": "diffusion_mlp",
+  "requested_synthetic_rows": 10179,
+  "selected_epoch": 50,
+  "validation_selection_ap": 0.539063545156995,
+  "backbone": "mlp",
+  "training_rows": 3911,
+  "density": null,
+  "synthetic_rows": 10179,
+  "generation_seconds": 50.97701375000179
+}

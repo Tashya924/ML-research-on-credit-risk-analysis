@@ -1,0 +1,1 @@
+LOKY_MAX_CPU_COUNT=4 OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 .venv/bin/python train.py > /tmp/credit_grounded_full.log 2>&1

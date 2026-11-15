@@ -1,0 +1,11 @@
+{
+  "method": "diffusion_transformer",
+  "requested_synthetic_rows": 10056,
+  "selected_epoch": 50,
+  "validation_selection_ap": 0.5407013959822371,
+  "backbone": "transformer",
+  "training_rows": 3974,
+  "density": null,
+  "synthetic_rows": 10056,
+  "generation_seconds": 146.81808033399284
+}

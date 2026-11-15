@@ -1,0 +1,8 @@
+# Direct runtime versions
+numpy==2.2.6
+pandas==2.3.0
+scikit-learn==1.7.0
+torch==2.14.0
+joblib==1.5.1
+matplotlib==3.10.3
+threadpoolctl==3.6.0

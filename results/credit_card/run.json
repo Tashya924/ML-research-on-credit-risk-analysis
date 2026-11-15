@@ -1,0 +1,109 @@
+{
+  "configuration": {
+    "output": "results/credit_card",
+    "seeds": [
+      101,
+      202,
+      303,
+      404,
+      505
+    ],
+    "epochs": [
+      50,
+      150
+    ],
+    "steps": 100,
+    "batch_size": 512,
+    "threads": 4,
+    "workers": 2,
+    "smoke": false
+  },
+  "status": "complete",
+  "source_hashes": {
+    "creditrisk/__init__.py": "b1def456e8a2dc4859c94673226943a82f0a19b1d531d143eaf6d0863593a51c",
+    "creditrisk/agss.py": "0c36acbba7cc91a6fd70f89fcf394a9b3879a749a04973117d8f0cc67f62f815",
+    "creditrisk/artifacts.py": "071ef80ac14719334c0a469d6e42eeb848885f7f88b22a5a6d83a1f2f9479098",
+    "creditrisk/classifiers.py": "213e8794a985282baf92dba2e45032af0016fd6ffb93e85baa0546e0c7ef1d13",
+    "creditrisk/compact.py": "0b9d2ea5f98aba314fc79d05a854cb73bcf9c61d6000286b576fa4419b54d5d5",
+    "creditrisk/data.py": "9d44e6550f6824f30c7521141e714b111652aba13b3d1597fe5a0531a238c804",
+    "creditrisk/diffusion.py": "51b272e48fd595521eb6cf54dbd45437018475ac09b8a776a27bfed568ba9d00",
+    "creditrisk/experiment.py": "bfda44b6d29af70f81ba190a5144807f7d5befdf83d3d52ae187ed64c45a2aa4",
+    "creditrisk/metrics.py": "2da7bb2d3577b526675cd004447223e362910776bbce444edd4fdc305020b61f",
+    "creditrisk/report.py": "8e11e0044e57e79fa9003318700aa171f9cb46e8d131bccd34edcd2e2da4d75a",
+    "creditrisk/verify.py": "c6e96e4c18ddf7e19c4152f8861cddb8c2ed0b46b4289b6c1a5ac4e07499d6a9",
+    "pyproject.toml": "2b3a0eb8d706f94f66ba007761230deec5048e2cadf0d3d3c4c72ac12500a04f",
+    "requirements.txt": "e6e954bbd722446ed33df4ea98109a55e4b1b14fe6fec625bcf06c98253611ff",
+    "tests/test_metric_values.py": "0bb6d00df62a6890c6d2916f025a77f72674ea3697bfbeb41b87ec5e73e92c52",
+    "tests/test_protocol.py": "4c3c1f205a36c005a829baa80b843c408209cd1275000a9bb041f32c2d866658",
+    "tests/test_storage.py": "645f30dd3161ceac9f994f9b300a4b5e5e954a0511de57bf48943dabf0501532",
+    "train.py": "6a9c48209505f8930473241c41d011d7910982b835e04cfec2d2fcdd491c459c",
+    "vendor/__init__.py": "46d8f4f8b7bd214de176cb22333d0acadf556d046ea1816a7abdf8d0108722b2",
+    "vendor/tab_ddpm/LICENSE.md": "be701b4d15238cf3c2d730ead1b72868a99e397fe872da0e89e07ce50e68ca99",
+    "vendor/tab_ddpm/PROVENANCE.json": "82bfb4acae48814170cc73a1c0fbc0703c7b6010df5b4cb53b545494aa8a992c",
+    "vendor/tab_ddpm/__init__.py": "01a19aa65a94edf07bdeb9caab5d8ebf180fc00d4055fcf49d946c77238ed90f",
+    "vendor/tab_ddpm/gaussian_multinomial_diffsuion.py": "41f290c0c3bb1fbdbf5f0cf90cf29df0995aa058a846f57ed50a3667093d1486",
+    "vendor/tab_ddpm/modules.py": "c1636d738bad90b571def06ee2b5bcb03e22f7577ab0d2d07ff806fb8b0023b4",
+    "vendor/tab_ddpm/utils.py": "722a19ed84a65745472d95d8c563818f0971f8e946ee5b81d4a7a92670c472e1"
+  },
+  "fitting_hashes": {
+    "creditrisk/__init__.py": "b1def456e8a2dc4859c94673226943a82f0a19b1d531d143eaf6d0863593a51c",
+    "creditrisk/agss.py": "0c36acbba7cc91a6fd70f89fcf394a9b3879a749a04973117d8f0cc67f62f815",
+    "creditrisk/artifacts.py": "071ef80ac14719334c0a469d6e42eeb848885f7f88b22a5a6d83a1f2f9479098",
+    "creditrisk/classifiers.py": "213e8794a985282baf92dba2e45032af0016fd6ffb93e85baa0546e0c7ef1d13",
+    "creditrisk/data.py": "9d44e6550f6824f30c7521141e714b111652aba13b3d1597fe5a0531a238c804",
+    "creditrisk/diffusion.py": "51b272e48fd595521eb6cf54dbd45437018475ac09b8a776a27bfed568ba9d00",
+    "creditrisk/experiment.py": "bfda44b6d29af70f81ba190a5144807f7d5befdf83d3d52ae187ed64c45a2aa4",
+    "creditrisk/metrics.py": "2da7bb2d3577b526675cd004447223e362910776bbce444edd4fdc305020b61f",
+    "pyproject.toml": "2b3a0eb8d706f94f66ba007761230deec5048e2cadf0d3d3c4c72ac12500a04f",
+    "requirements.txt": "e6e954bbd722446ed33df4ea98109a55e4b1b14fe6fec625bcf06c98253611ff",
+    "train.py": "6a9c48209505f8930473241c41d011d7910982b835e04cfec2d2fcdd491c459c",
+    "vendor/__init__.py": "46d8f4f8b7bd214de176cb22333d0acadf556d046ea1816a7abdf8d0108722b2",
+    "vendor/tab_ddpm/LICENSE.md": "be701b4d15238cf3c2d730ead1b72868a99e397fe872da0e89e07ce50e68ca99",
+    "vendor/tab_ddpm/PROVENANCE.json": "82bfb4acae48814170cc73a1c0fbc0703c7b6010df5b4cb53b545494aa8a992c",
+    "vendor/tab_ddpm/__init__.py": "01a19aa65a94edf07bdeb9caab5d8ebf180fc00d4055fcf49d946c77238ed90f",
+    "vendor/tab_ddpm/gaussian_multinomial_diffsuion.py": "41f290c0c3bb1fbdbf5f0cf90cf29df0995aa058a846f57ed50a3667093d1486",
+    "vendor/tab_ddpm/modules.py": "c1636d738bad90b571def06ee2b5bcb03e22f7577ab0d2d07ff806fb8b0023b4",
+    "vendor/tab_ddpm/utils.py": "722a19ed84a65745472d95d8c563818f0971f8e946ee5b81d4a7a92670c472e1"
+  },
+  "command": [
+    "/Users/anirudh/Desktop/ML-research-on-credit-risk-analysis/.venv/bin/python",
+    "train.py"
+  ],
+  "python": "3.12.5",
+  "platform": "macOS-26.3-arm64-arm-64bit",
+  "sklearn": "1.7.0",
+  "torch": "2.14.0",
+  "numpy": "2.2.6",
+  "pandas": "2.3.0",
+  "joblib": "1.5.1",
+  "started_utc": "2026-11-09T06:31:37.381548+00:00",
+  "dataset": {
+    "path": "UCI_Credit_Card.csv",
+    "source": "https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients",
+    "rows": 30000,
+    "defaults": 6636,
+    "categorical": [
+      "SEX",
+      "EDUCATION",
+      "MARRIAGE",
+      "PAY_0",
+      "PAY_2",
+      "PAY_3",
+      "PAY_4",
+      "PAY_5",
+      "PAY_6"
+    ],
+    "sha256": "a0f0ab49d6326671d6cd83be5c88dcf18007025fe9a53ecd699119c871176ca1"
+  },
+  "methods": [
+    "real",
+    "agss_interpolation",
+    "diffusion_mlp",
+    "diffusion_transformer",
+    "agss_diffusion_mlp",
+    "agss_diffusion_transformer"
+  ],
+  "subset_indices": null,
+  "failures": [],
+  "finished_utc": "2026-11-09T06:52:14.459929+00:00"
+}

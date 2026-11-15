@@ -1,0 +1,17 @@
+{
+  "train": {
+    "rows": 18004,
+    "defaults": 3974,
+    "sha256": "b6184821b730f263dbd75bb3dfb4135ead5eedaddc1436954bacc4a80b9664f8"
+  },
+  "validation": {
+    "rows": 5996,
+    "defaults": 1366,
+    "sha256": "1e4a0b04cc999d3f6431373a7ec86735b1f71da24a0dd3532bcb7b26810ba7d5"
+  },
+  "test": {
+    "rows": 6000,
+    "defaults": 1296,
+    "sha256": "53c55aa8cef6acef8afc07cb9f3b888c81b55ebd9394b695e4eec3a81d992cfb"
+  }
+}

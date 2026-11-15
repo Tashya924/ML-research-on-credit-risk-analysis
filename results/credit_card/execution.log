@@ -1,0 +1,157 @@
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+credit_card seed=202 real: start
+credit_card seed=101 real: start
+  seed=202 method=real model=logistic_regression: AP=0.5509
+  seed=101 method=real model=logistic_regression: AP=0.5315
+  seed=202 method=real model=hist_gradient_boosting: AP=0.5623
+  seed=101 method=real model=hist_gradient_boosting: AP=0.5362
+  seed=101 method=real model=random_forest: AP=0.5405
+  seed=202 method=real model=random_forest: AP=0.5572
+  seed=202 method=real model=extra_trees: AP=0.5530
+  seed=101 method=real model=extra_trees: AP=0.5321
+credit_card seed=202 agss_interpolation: start
+credit_card seed=101 agss_interpolation: start
+  seed=101 method=agss_interpolation model=logistic_regression: AP=0.5332
+  seed=202 method=agss_interpolation model=logistic_regression: AP=0.5431
+  seed=202 method=agss_interpolation model=hist_gradient_boosting: AP=0.5269
+  seed=101 method=agss_interpolation model=hist_gradient_boosting: AP=0.4879
+  seed=202 method=agss_interpolation model=random_forest: AP=0.5275
+  seed=101 method=agss_interpolation model=random_forest: AP=0.5091
+  seed=202 method=agss_interpolation model=extra_trees: AP=0.5355
+credit_card seed=202 diffusion_mlp: start
+  seed=101 method=agss_interpolation model=extra_trees: AP=0.5204
+credit_card seed=101 diffusion_mlp: start
+  seed=101 method=diffusion_mlp model=logistic_regression: AP=0.4675
+  seed=202 method=diffusion_mlp model=logistic_regression: AP=0.4888
+  seed=101 method=diffusion_mlp model=hist_gradient_boosting: AP=0.5324
+  seed=202 method=diffusion_mlp model=hist_gradient_boosting: AP=0.5569
+  seed=101 method=diffusion_mlp model=random_forest: AP=0.5279
+  seed=202 method=diffusion_mlp model=random_forest: AP=0.5564
+  seed=101 method=diffusion_mlp model=extra_trees: AP=0.5203
+credit_card seed=101 diffusion_transformer: start
+  seed=202 method=diffusion_mlp model=extra_trees: AP=0.5505
+credit_card seed=202 diffusion_transformer: start
+  seed=101 method=diffusion_transformer model=logistic_regression: AP=0.5213
+  seed=202 method=diffusion_transformer model=logistic_regression: AP=0.5310
+  seed=101 method=diffusion_transformer model=hist_gradient_boosting: AP=0.5181
+  seed=202 method=diffusion_transformer model=hist_gradient_boosting: AP=0.5264
+  seed=101 method=diffusion_transformer model=random_forest: AP=0.5204
+  seed=202 method=diffusion_transformer model=random_forest: AP=0.5288
+  seed=101 method=diffusion_transformer model=extra_trees: AP=0.5265
+credit_card seed=101 agss_diffusion_mlp: start
+  seed=202 method=diffusion_transformer model=extra_trees: AP=0.5289
+credit_card seed=202 agss_diffusion_mlp: start
+  seed=202 method=agss_diffusion_mlp model=logistic_regression: AP=0.4611
+  seed=101 method=agss_diffusion_mlp model=logistic_regression: AP=0.3950
+  seed=202 method=agss_diffusion_mlp model=hist_gradient_boosting: AP=0.5461
+  seed=101 method=agss_diffusion_mlp model=hist_gradient_boosting: AP=0.5295
+  seed=202 method=agss_diffusion_mlp model=random_forest: AP=0.5532
+  seed=202 method=agss_diffusion_mlp model=extra_trees: AP=0.5421
+credit_card seed=202 agss_diffusion_transformer: start
+  seed=101 method=agss_diffusion_mlp model=random_forest: AP=0.5281
+  seed=101 method=agss_diffusion_mlp model=extra_trees: AP=0.5172
+credit_card seed=101 agss_diffusion_transformer: start
+  seed=202 method=agss_diffusion_transformer model=logistic_regression: AP=0.5411
+  seed=202 method=agss_diffusion_transformer model=hist_gradient_boosting: AP=0.5231
+  seed=202 method=agss_diffusion_transformer model=random_forest: AP=0.5282
+  seed=202 method=agss_diffusion_transformer model=extra_trees: AP=0.5286
+  seed=101 method=agss_diffusion_transformer model=logistic_regression: AP=0.5185
+  seed=101 method=agss_diffusion_transformer model=hist_gradient_boosting: AP=0.5234
+  seed=101 method=agss_diffusion_transformer model=random_forest: AP=0.5260
+  seed=101 method=agss_diffusion_transformer model=extra_trees: AP=0.5335
+credit_card seed=303 real: start
+  seed=303 method=real model=logistic_regression: AP=0.5376
+  seed=303 method=real model=hist_gradient_boosting: AP=0.5579
+  seed=303 method=real model=random_forest: AP=0.5586
+  seed=303 method=real model=extra_trees: AP=0.5496
+credit_card seed=303 agss_interpolation: start
+credit_card seed=404 real: start
+  seed=303 method=agss_interpolation model=logistic_regression: AP=0.5349
+  seed=404 method=real model=logistic_regression: AP=0.5279
+  seed=303 method=agss_interpolation model=hist_gradient_boosting: AP=0.5061
+  seed=404 method=real model=hist_gradient_boosting: AP=0.5507
+  seed=404 method=real model=random_forest: AP=0.5420
+  seed=303 method=agss_interpolation model=random_forest: AP=0.5246
+  seed=404 method=real model=extra_trees: AP=0.5367
+credit_card seed=404 agss_interpolation: start
+  seed=303 method=agss_interpolation model=extra_trees: AP=0.5390
+credit_card seed=303 diffusion_mlp: start
+  seed=404 method=agss_interpolation model=logistic_regression: AP=0.5264
+  seed=404 method=agss_interpolation model=hist_gradient_boosting: AP=0.5026
+  seed=404 method=agss_interpolation model=random_forest: AP=0.5155
+  seed=404 method=agss_interpolation model=extra_trees: AP=0.5274
+credit_card seed=404 diffusion_mlp: start
+  seed=303 method=diffusion_mlp model=logistic_regression: AP=0.4558
+  seed=303 method=diffusion_mlp model=hist_gradient_boosting: AP=0.5420
+  seed=303 method=diffusion_mlp model=random_forest: AP=0.5491
+  seed=404 method=diffusion_mlp model=logistic_regression: AP=0.4631
+  seed=303 method=diffusion_mlp model=extra_trees: AP=0.5383
+credit_card seed=303 diffusion_transformer: start
+  seed=404 method=diffusion_mlp model=hist_gradient_boosting: AP=0.5320
+  seed=404 method=diffusion_mlp model=random_forest: AP=0.5398
+  seed=404 method=diffusion_mlp model=extra_trees: AP=0.5296
+credit_card seed=404 diffusion_transformer: start
+  seed=303 method=diffusion_transformer model=logistic_regression: AP=0.5294
+  seed=404 method=diffusion_transformer model=logistic_regression: AP=0.5110
+  seed=303 method=diffusion_transformer model=hist_gradient_boosting: AP=0.5347
+  seed=404 method=diffusion_transformer model=hist_gradient_boosting: AP=0.5224
+  seed=303 method=diffusion_transformer model=random_forest: AP=0.5427
+  seed=303 method=diffusion_transformer model=extra_trees: AP=0.5322
+credit_card seed=303 agss_diffusion_mlp: start
+  seed=404 method=diffusion_transformer model=random_forest: AP=0.5277
+  seed=404 method=diffusion_transformer model=extra_trees: AP=0.5197
+credit_card seed=404 agss_diffusion_mlp: start
+  seed=404 method=agss_diffusion_mlp model=logistic_regression: AP=0.4074
+  seed=303 method=agss_diffusion_mlp model=logistic_regression: AP=0.3977
+  seed=404 method=agss_diffusion_mlp model=hist_gradient_boosting: AP=0.5390
+  seed=303 method=agss_diffusion_mlp model=hist_gradient_boosting: AP=0.5463
+  seed=404 method=agss_diffusion_mlp model=random_forest: AP=0.5393
+  seed=303 method=agss_diffusion_mlp model=random_forest: AP=0.5488
+  seed=404 method=agss_diffusion_mlp model=extra_trees: AP=0.5262
+credit_card seed=404 agss_diffusion_transformer: start
+  seed=303 method=agss_diffusion_mlp model=extra_trees: AP=0.5369
+credit_card seed=303 agss_diffusion_transformer: start
+  seed=303 method=agss_diffusion_transformer model=logistic_regression: AP=0.5251
+  seed=404 method=agss_diffusion_transformer model=logistic_regression: AP=0.5132
+  seed=303 method=agss_diffusion_transformer model=hist_gradient_boosting: AP=0.5345
+  seed=404 method=agss_diffusion_transformer model=hist_gradient_boosting: AP=0.5245
+  seed=303 method=agss_diffusion_transformer model=random_forest: AP=0.5423
+  seed=404 method=agss_diffusion_transformer model=random_forest: AP=0.5223
+  seed=303 method=agss_diffusion_transformer model=extra_trees: AP=0.5322
+  seed=404 method=agss_diffusion_transformer model=extra_trees: AP=0.5308
+credit_card seed=505 real: start
+  seed=505 method=real model=logistic_regression: AP=0.5465
+  seed=505 method=real model=hist_gradient_boosting: AP=0.5594
+  seed=505 method=real model=random_forest: AP=0.5573
+  seed=505 method=real model=extra_trees: AP=0.5549
+credit_card seed=505 agss_interpolation: start
+  seed=505 method=agss_interpolation model=logistic_regression: AP=0.5430
+  seed=505 method=agss_interpolation model=hist_gradient_boosting: AP=0.5272
+  seed=505 method=agss_interpolation model=random_forest: AP=0.5355
+  seed=505 method=agss_interpolation model=extra_trees: AP=0.5456
+credit_card seed=505 diffusion_mlp: start
+  seed=505 method=diffusion_mlp model=logistic_regression: AP=0.4706
+  seed=505 method=diffusion_mlp model=hist_gradient_boosting: AP=0.5564
+  seed=505 method=diffusion_mlp model=random_forest: AP=0.5565
+  seed=505 method=diffusion_mlp model=extra_trees: AP=0.5484
+credit_card seed=505 diffusion_transformer: start
+  seed=505 method=diffusion_transformer model=logistic_regression: AP=0.5183
+  seed=505 method=diffusion_transformer model=hist_gradient_boosting: AP=0.5366
+  seed=505 method=diffusion_transformer model=random_forest: AP=0.5487
+  seed=505 method=diffusion_transformer model=extra_trees: AP=0.5380
+credit_card seed=505 agss_diffusion_mlp: start
+  seed=505 method=agss_diffusion_mlp model=logistic_regression: AP=0.4903
+  seed=505 method=agss_diffusion_mlp model=hist_gradient_boosting: AP=0.5333
+  seed=505 method=agss_diffusion_mlp model=random_forest: AP=0.5491
+  seed=505 method=agss_diffusion_mlp model=extra_trees: AP=0.5436
+credit_card seed=505 agss_diffusion_transformer: start
+  seed=505 method=agss_diffusion_transformer model=logistic_regression: AP=0.5282
+  seed=505 method=agss_diffusion_transformer model=hist_gradient_boosting: AP=0.5304
+  seed=505 method=agss_diffusion_transformer model=random_forest: AP=0.5428
+  seed=505 method=agss_diffusion_transformer model=extra_trees: AP=0.5337
+Finished: results/credit_card; failed methods=0
